@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "thought-garden",
-    "slug": "thought-garden",
+    "name": "Mindbed",
+    "slug": "mindbed",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "thoughtgarden",
-    "userInterfaceStyle": "automatic",
+    "scheme": "mindbed",
+    "userInterfaceStyle": "light",
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -20,7 +20,6 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "server",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -28,7 +27,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#FBF7EF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
