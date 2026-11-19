@@ -1,4 +1,4 @@
-# Problem Framing — Thought Garden (working title)
+# Problem Framing — Mindbed
 
 > Version: V0.1 · Date: 2026-11-19 · Type: Personal PM portfolio project
 > Platform: iOS app (React Native + Expo)
@@ -13,7 +13,7 @@ with no order, so the important ones get buried and progress feels invisible.
 To-do apps don't fix this. They assume you've already decided what to do, and
 missing a day makes people feel guilty.
 
-Thought Garden gives these learners a calm, instant place to **plant** a
+Mindbed gives these learners a calm, instant place to **plant** a
 thought the moment it appears, sort it into their own topic **beds**, and
 **water** it each time they work on it until it **blooms** (done). A
 calendar-style **Garden** shows what they planted, watered, and finished each

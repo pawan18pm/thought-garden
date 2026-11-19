@@ -1,4 +1,4 @@
-# SRD — Thought Garden (working title)
+# SRD — Mindbed
 
 > Version: V0.1
 > Date: 2026-11-19
@@ -65,7 +65,7 @@ A calm, playful, guilt-free study companion: "your thoughts, growing." As a port
 
 **timespent (iOS):** a minimal activity tracker.
 
-| | timespent | Thought Garden |
+| | timespent | Mindbed |
 |---|---|---|
 | Starts from | Activities you already do (Reading, Running) | Loose thoughts that pop up while studying |
 | Core action | Timer session or tally | Plant, then water, then bloom |

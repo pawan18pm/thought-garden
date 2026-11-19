@@ -1,8 +1,8 @@
-# Thought Garden MVP Implementation Plan
+# Mindbed MVP Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the Thought Garden iOS MVP (onboarding, Plant tab, Garden tab, daily reminder, Settings) as an Expo app the owner runs in Expo Go on their iPhone.
+**Goal:** Build the Mindbed iOS MVP (onboarding, Plant tab, Garden tab, daily reminder, Settings) as an Expo app the owner runs in Expo Go on their iPhone.
 
 **Architecture:** Expo Router screens stay thin. All product rules are pure functions in `src/domain` (test-first). Data lives in on-device SQLite behind a small `Db` interface, so repositories are tested in Node with `node:sqlite`. A zustand store calls the repositories and feeds the UI. Visuals are hand-built components from the style board.
 
@@ -53,7 +53,7 @@
 - [ ] **Step 5:** Run `npx jest src/ui` → FAIL (module not found).
 - [ ] **Step 6:** Implement `src/ui/tokens.ts` with the Global Constraints values.
 - [ ] **Step 7:** Run `npx jest src/ui` → PASS.
-- [ ] **Step 8:** In `app/_layout.tsx` load fonts with `useFonts` (BricolageGrotesque_700Bold, BricolageGrotesque_800ExtraBold, Inter_400Regular, Inter_600SemiBold) and wrap in `GestureHandlerRootView`; `app/index.tsx` shows "Thought Garden" in the title font on paper background.
+- [ ] **Step 8:** In `app/_layout.tsx` load fonts with `useFonts` (BricolageGrotesque_700Bold, BricolageGrotesque_800ExtraBold, Inter_400Regular, Inter_600SemiBold) and wrap in `GestureHandlerRootView`; `app/index.tsx` shows "Mindbed" in the title font on paper background.
 - [ ] **Step 9:** Run `npx expo start`, scan the QR with the iPhone camera → app opens in Expo Go showing the title in Bricolage on cream. (Owner checks.)
 - [ ] **Step 10: Commit** `git add -A && git commit -m "chore: scaffold Expo app with tokens and fonts"`
 
@@ -248,7 +248,7 @@
 
 - [ ] **Step 1: Write failing tests:** **Review Focus 4:** permission denied → returns false, `reminder_enabled === '0'`, no schedule calls, no throw; granted → 14 `scheduleNotificationAsync` calls, none on today's date; `rescheduleReminders` cancels before scheduling; disabled → zero schedule calls.
 - [ ] **Step 2:** Run → FAIL. **Step 3:** Implement `reminders.ts`. **Step 4:** Run → PASS.
-- [ ] **Step 5:** Implement `settings.tsx`: reminder Switch + time picker (if denied, show "Notifications are off for Thought Garden. Turn them on in iOS Settings." with a button calling `Linking.openSettings()`); **Manage beds** (`ManageBeds`: Ideas listed but locked; add bed (at 6+ user beds show "Gardens grow best with a few beds 🌱" but still allow it); rename, recolor from 6 swatches, delete with "Its plants will move to Ideas" confirm, reorder via `react-native-draggable-flatlist`; if drag misbehaves in Expo Go, replace with Up/Down buttons per spec); "Change who you are" (persona picker); "Share anonymous usage data" Switch (calls `setAnalyticsEnabled`) with the note "Only actions like 'planted' or 'watered', never what you write."; version label.
+- [ ] **Step 5:** Implement `settings.tsx`: reminder Switch + time picker (if denied, show "Notifications are off for Mindbed. Turn them on in iOS Settings." with a button calling `Linking.openSettings()`); **Manage beds** (`ManageBeds`: Ideas listed but locked; add bed (at 6+ user beds show "Gardens grow best with a few beds 🌱" but still allow it); rename, recolor from 6 swatches, delete with "Its plants will move to Ideas" confirm, reorder via `react-native-draggable-flatlist`; if drag misbehaves in Expo Go, replace with Up/Down buttons per spec); "Change who you are" (persona picker); "Share anonymous usage data" Switch (calls `setAnalyticsEnabled`) with the note "Only actions like 'planted' or 'watered', never what you write."; version label.
 - [ ] **Step 6: Owner review:** enable the reminder for 2 minutes from now, close the app, and receive the notification; reopen the app, confirm today's is cancelled (set the time again 2 min ahead while the app stays open → no notification today); in PostHog › Activity, confirm events arrive with no thought text; turn the analytics toggle off → no new events.
 - [ ] **Step 7: Commit** `feat: daily reminder, settings, analytics toggle`
 

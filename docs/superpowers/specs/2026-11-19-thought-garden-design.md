@@ -1,4 +1,4 @@
-# Thought Garden: Technical Design
+# Mindbed: Technical Design
 
 > Date: 2026-11-19 · Status: draft for approval
 > Product source of truth: [SRD](../../srd.md) · [Problem Framing](../../problem-framing.md)
