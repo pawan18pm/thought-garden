@@ -1,0 +1,5 @@
+thought-garden/node_modules/
+thought-garden/.expo/
+thought-garden/.env
+*.log
+.superpowers/
