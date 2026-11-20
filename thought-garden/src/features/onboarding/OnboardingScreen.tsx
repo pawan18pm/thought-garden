@@ -1,5 +1,5 @@
 import React, { useEffect, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fonts } from '@/ui/tokens';
 import { track } from '@/analytics/analytics';
@@ -19,13 +19,15 @@ export function OnboardingScreen({ step, title, children, footer }: Props) {
   }, [step]);
   return (
     <SafeAreaView style={styles.root}>
-      <View style={styles.body}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {title}
-        </Text>
-        {children}
-      </View>
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable accessible={false} onPress={Keyboard.dismiss} style={styles.body}>
+          <Text accessibilityRole="header" style={styles.title}>
+            {title}
+          </Text>
+          {children}
+        </Pressable>
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -35,6 +37,7 @@ export const onboardingStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   root: { flex: 1, backgroundColor: colors.paper },
   body: { flex: 1, paddingHorizontal: 24, paddingTop: 32 },
   title: { fontFamily: fonts.titleXBold, fontSize: 32, color: colors.ink, marginBottom: 20 },

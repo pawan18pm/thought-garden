@@ -64,6 +64,9 @@ export default function FirstPlant() {
         accessibilityLabel="Your first thought"
         autoFocus
         multiline
+        submitBehavior="submit"
+        returnKeyType="done"
+        onSubmitEditing={() => void submit()}
         value={text}
         onChangeText={setText}
         maxLength={140}
