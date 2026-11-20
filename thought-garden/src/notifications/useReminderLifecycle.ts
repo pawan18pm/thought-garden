@@ -19,10 +19,15 @@ export function useReminderLifecycle(settings: SettingsStore): void {
     // Cold start: boot already tracked app_opened.
     void touch();
 
+    // Only a real return from background counts as an open; inactive blips (permission prompt,
+    // Control Center) still refresh the window but are not tracked.
+    let wasBackground = AppState.currentState === 'background';
     let prev = AppState.currentState;
     const appSub = AppState.addEventListener('change', (next) => {
+      if (next === 'background') wasBackground = true;
       if ((prev === 'background' || prev === 'inactive') && next === 'active') {
-        track('app_opened', {});
+        if (wasBackground) track('app_opened', {});
+        wasBackground = false;
         void touch();
       }
       prev = next;

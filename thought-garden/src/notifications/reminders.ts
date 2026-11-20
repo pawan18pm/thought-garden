@@ -60,8 +60,16 @@ export async function disableReminder(): Promise<void> {
   }
 }
 
-/** Rolling window: cancel everything, then schedule the next 14 days (starting tomorrow). */
-export async function rescheduleReminders(now: Date = new Date()): Promise<void> {
+let chain: Promise<void> = Promise.resolve();
+
+/** Rolling window: cancel everything, then schedule the next 14 days (starting tomorrow). Calls are serialized. */
+export function rescheduleReminders(now: Date = new Date()): Promise<void> {
+  const run = chain.then(() => doReschedule(now));
+  chain = run.catch(() => {});
+  return run;
+}
+
+async function doReschedule(now: Date): Promise<void> {
   try {
     const s = store();
     await Notifications.cancelAllScheduledNotificationsAsync();
@@ -70,6 +78,7 @@ export async function rescheduleReminders(now: Date = new Date()): Promise<void>
     const dates = reminderDates(now, time);
     for (let i = 0; i < dates.length; i++) {
       await Notifications.scheduleNotificationAsync({
+        identifier: `reminder-${i}`,
         content: { title: 'Mindbed', body: reminderLine(i) },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: dates[i] },
       });

@@ -71,8 +71,10 @@ function ReminderSection() {
     if (!d) return;
     const t = toHHmm(d);
     setTime(t);
-    if (enabled) await enableReminder(t);
-    else await repos.settings.set('reminder_time', t);
+    if (enabled) {
+      setEnabled(await enableReminder(t));
+      await checkPermission();
+    } else await repos.settings.set('reminder_time', t);
   };
 
   return (

@@ -105,4 +105,22 @@ describe('reminders', () => {
     expect(N.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
     expect(mockTrack).toHaveBeenCalledWith('reminder_disabled', {});
   });
+
+  it('concurrent reschedules leave exactly 14 pending', async () => {
+    store = { reminder_enabled: '1', reminder_time: '21:00' };
+    const pending = new Map<string, unknown>();
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    N.cancelAllScheduledNotificationsAsync.mockImplementation(async () => {
+      await tick();
+      pending.clear();
+    });
+    N.scheduleNotificationAsync.mockImplementation(async (req) => {
+      await tick();
+      pending.set(req.identifier as string, req);
+      return req.identifier as string;
+    });
+    await Promise.all([rescheduleReminders(NOW), rescheduleReminders(NOW)]);
+    expect(pending.size).toBe(14);
+    expect(pending.has('reminder-0')).toBe(true);
+  });
 });
