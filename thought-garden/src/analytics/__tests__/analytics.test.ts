@@ -1,4 +1,12 @@
 /** @jest-environment node */
+const mockCtor = jest.fn();
+jest.mock('posthog-react-native', () => ({
+  __esModule: true,
+  default: function (...a: unknown[]) {
+    mockCtor(...a);
+    return { capture: jest.fn(), optIn: jest.fn(), optOut: jest.fn() };
+  },
+}));
 import { __setClientForTests, initAnalytics, setAnalyticsEnabled, track } from '../analytics';
 
 function fake() {
@@ -32,5 +40,25 @@ describe('analytics', () => {
     expect(c.optOut).toHaveBeenCalled();
     setAnalyticsEnabled(true);
     expect(c.optIn).toHaveBeenCalled();
+  });
+
+  it('creates one restricted PostHog client even if initAnalytics runs twice', () => {
+    const saved = process.env.EXPO_PUBLIC_POSTHOG_KEY;
+    process.env.EXPO_PUBLIC_POSTHOG_KEY = 'phc_test';
+    __setClientForTests(null);
+    mockCtor.mockClear();
+    initAnalytics();
+    initAnalytics();
+    expect(mockCtor).toHaveBeenCalledTimes(1);
+    expect(mockCtor).toHaveBeenCalledWith('phc_test', {
+      host: 'https://us.i.posthog.com',
+      captureAppLifecycleEvents: false,
+      preloadFeatureFlags: false,
+      disableRemoteConfig: true,
+      disableSurveys: true,
+      personProfiles: 'never',
+    });
+    if (saved === undefined) delete process.env.EXPO_PUBLIC_POSTHOG_KEY;
+    else process.env.EXPO_PUBLIC_POSTHOG_KEY = saved;
   });
 });

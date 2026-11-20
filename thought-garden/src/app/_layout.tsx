@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
-import * as Crypto from 'expo-crypto';
 import {
   BricolageGrotesque_700Bold,
   BricolageGrotesque_800ExtraBold,
@@ -10,18 +9,8 @@ import {
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { colors } from '@/ui/tokens';
-import { openExpoDb } from '@/db/expoDb';
-import { migrate } from '@/db/schema';
-import { createRepos } from '@/db/repos';
-import { nowIso } from '@/domain/dates';
-import { createGardenStore, type GardenStore, type Repos } from '@/store/garden';
+import { bootOnce, type Boot } from '@/store/boot';
 import { AppProvider } from '@/store/AppProvider';
-import { initAnalytics, setAnalyticsEnabled, track } from '@/analytics/analytics';
-
-interface Boot {
-  store: GardenStore;
-  repos: Repos;
-}
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -36,23 +25,15 @@ export default function RootLayout() {
   useEffect(() => {
     if (!loaded) return;
     let cancelled = false;
-    (async () => {
-      try {
-        const db = await openExpoDb();
-        await migrate(db);
-        const repos = createRepos(db, () => Crypto.randomUUID(), nowIso);
-        await repos.beds.ensureIdeas();
-        const store = createGardenStore(repos);
-        await store.getState().load();
-        initAnalytics();
-        if ((await repos.settings.get('analytics_enabled')) === '0') setAnalyticsEnabled(false);
-        track('app_opened', {});
-        if (!cancelled) setBoot({ store, repos });
-      } catch (e) {
+    bootOnce().then(
+      (b) => {
+        if (!cancelled) setBoot(b);
+      },
+      (e) => {
         console.error('Startup failed', e);
         if (!cancelled) setFailed(true);
-      }
-    })();
+      },
+    );
     return () => {
       cancelled = true;
     };
