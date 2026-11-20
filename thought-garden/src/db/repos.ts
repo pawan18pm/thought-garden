@@ -230,5 +230,10 @@ export function createRepos(db: Db, newId: () => string, now: () => string) {
     },
   };
 
-  return { beds, plants, activity, settings };
+  /** Dev-only: wipes every table. */
+  async function resetAll(): Promise<void> {
+    for (const t of ['waterings', 'plants', 'beds', 'settings']) await db.run(`DELETE FROM ${t}`);
+  }
+
+  return { beds, plants, activity, settings, resetAll };
 }

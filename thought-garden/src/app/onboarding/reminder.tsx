@@ -9,6 +9,7 @@ import { ChunkyButton } from '@/ui/ChunkyButton';
 import { useRepos } from '@/store/AppProvider';
 import { useOnboardingState } from '@/store/onboardingState';
 import { track } from '@/analytics/analytics';
+import { enableReminder } from '@/notifications/reminders';
 
 type Choice = 'morning' | 'evening' | 'custom';
 type HHmm = `${number}:${number}`;
@@ -39,10 +40,8 @@ export default function Reminder() {
     busy.current = true;
     try {
       if (enable && time) {
-        // TODO(Task 11): enableReminder (OS permission prompt + scheduling) replaces these raw settings writes.
-        await repos.settings.set('reminder_enabled', '1');
-        await repos.settings.set('reminder_time', time);
-        track('reminder_enabled', { time });
+        // Triggers the iOS permission prompt; if denied we still finish onboarding normally.
+        await enableReminder(time);
       } else {
         await repos.settings.set('reminder_enabled', '0');
       }

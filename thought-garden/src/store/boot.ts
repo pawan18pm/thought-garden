@@ -5,6 +5,7 @@ import { createRepos } from '@/db/repos';
 import { nowIso } from '@/domain/dates';
 import type { Db } from '@/db/Db';
 import { initAnalytics, setAnalyticsEnabled, track } from '@/analytics/analytics';
+import { initReminders } from '@/notifications/reminders';
 import { createGardenStore, type GardenStore, type Repos } from './garden';
 
 export interface Boot {
@@ -25,6 +26,7 @@ export async function runBoot(deps: BootDeps): Promise<Boot> {
   await repos.beds.ensureIdeas();
   const store = createGardenStore(repos);
   await store.getState().load();
+  initReminders(repos.settings);
   initAnalytics();
   if ((await repos.settings.get('analytics_enabled')) === '0') setAnalyticsEnabled(false);
   track('app_opened', {});

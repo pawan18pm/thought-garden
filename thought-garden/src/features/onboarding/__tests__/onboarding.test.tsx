@@ -14,6 +14,8 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@react-native-community/datetimepicker', () => () => null);
 jest.mock('@/ui/useReducedMotion', () => ({ useReducedMotion: () => true }));
+const mockEnable = jest.fn();
+jest.mock('@/notifications/reminders', () => ({ enableReminder: (...a: unknown[]) => mockEnable(...a) }));
 jest.mock('@/analytics/analytics', () => ({ track: jest.fn() }));
 
 const mockState: Record<string, unknown> = {};
@@ -121,15 +123,25 @@ describe('onboarding', () => {
     expect(useOnboardingState.getState().done).toBe(true);
   });
 
-  it('Yes saves the chosen time', async () => {
+  it('Yes enables the reminder with the chosen time', async () => {
+    mockEnable.mockResolvedValue(true);
     useOnboardingDraft.setState({ persona: 'student' });
     await render(<Reminder />);
     expect(screen.getByLabelText('Yes, remind me').props.accessibilityState.disabled).toBe(true);
     await fireEvent.press(screen.getByLabelText('Evening 9:00'));
     await fireEvent.press(screen.getByLabelText('Yes, remind me'));
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/plant'));
-    expect(mockSettingsSet).toHaveBeenCalledWith('reminder_enabled', '1');
-    expect(mockSettingsSet).toHaveBeenCalledWith('reminder_time', '21:00');
-    expect(track).toHaveBeenCalledWith('reminder_enabled', { time: '21:00' });
+    expect(mockEnable).toHaveBeenCalledWith('21:00');
+    expect(mockSettingsSet).toHaveBeenCalledWith('onboarding_done', '1');
+  });
+
+  it('Yes with permission denied still finishes onboarding', async () => {
+    mockEnable.mockResolvedValue(false);
+    useOnboardingDraft.setState({ persona: 'student' });
+    await render(<Reminder />);
+    await fireEvent.press(screen.getByLabelText('Morning 8:00'));
+    await fireEvent.press(screen.getByLabelText('Yes, remind me'));
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/plant'));
+    expect(mockSettingsSet).toHaveBeenCalledWith('onboarding_done', '1');
   });
 });

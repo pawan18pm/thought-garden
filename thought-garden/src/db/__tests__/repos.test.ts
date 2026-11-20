@@ -184,4 +184,17 @@ describe('repos', () => {
     await r.settings.set('k', 'w');
     expect(await r.settings.get('k')).toBe('w');
   });
+
+  it('resetAll deletes every row', async () => {
+    const r = await setup();
+    const bed = await r.beds.create('A');
+    const p = await r.plants.create({ text: 'a', bedId: bed.id, priority: null });
+    await r.plants.water(p.id);
+    await r.settings.set('persona', 'student');
+    await r.resetAll();
+    expect(await r.beds.list()).toEqual([]);
+    expect(await r.plants.listActive()).toEqual([]);
+    expect(await r.settings.get('persona')).toBeNull();
+    expect((await r.activity.day('2026-11-19')).watered).toBe(0);
+  });
 });

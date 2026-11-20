@@ -3,6 +3,7 @@ import { createNodeDb } from '@/db/__tests__/nodeDb';
 import { __setClientForTests } from '@/analytics/analytics';
 import { __resetBootForTests, bootOnce } from '../boot';
 
+jest.mock('expo-notifications', () => ({ setNotificationHandler: jest.fn() }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'x' }));
 jest.mock('@/db/expoDb', () => ({ openExpoDb: jest.fn() }));
 

@@ -11,7 +11,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { colors } from '@/ui/tokens';
 import { bootOnce, type Boot } from '@/store/boot';
 import { AppProvider } from '@/store/AppProvider';
+import { useReminderLifecycle } from '@/notifications/useReminderLifecycle';
 import { useOnboardingState } from '@/store/onboardingState';
+
+function ReminderLifecycle({ settings }: { settings: Boot['repos']['settings'] }) {
+  useReminderLifecycle(settings);
+  return null;
+}
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -53,6 +59,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
       <AppProvider store={boot.store} repos={boot.repos}>
+        <ReminderLifecycle settings={boot.repos.settings} />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }} />
       </AppProvider>
     </GestureHandlerRootView>
