@@ -52,3 +52,11 @@
 - Unused deps: react-native-draggable-flatlist, @expo/ui, expo-glass-effect, expo-symbols.
 - onboarding_completed isn't tracked if the app is killed on the Reminder screen.
 - Before TestFlight: re-check npm audit; withExclusiveTransactionAsync for beds.remove.
+
+## Bloom + Garden redesign (2026-11-20)
+Commits 530a96a..8c83208. Plant tab header + Bloomed-today card at top; Garden soil-tile calendar, week card, day-detail cards; day-rollover refresh of bloomed-today.
+Deferred minors:
+- Bloomed-today flowers cluster left instead of spreading evenly; a few hex colors (#FFFFFF, #FFD84D) outside tokens; summary chips row has no flexWrap.
+- PlantArt's own soil ellipse slightly overlaps the calendar tile soil strip (check on device).
+- Card goes stale if the app stays in the foreground across midnight with no action (refreshes on next foreground); Garden tab refreshes on focus only.
+- One redundant reload after a post-midnight bloom + foreground (harmless).
