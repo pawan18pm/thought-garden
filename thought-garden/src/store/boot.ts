@@ -10,6 +10,7 @@ import { createGardenStore, type GardenStore, type Repos } from './garden';
 export interface Boot {
   store: GardenStore;
   repos: Repos;
+  onboardingDone: boolean;
 }
 
 export interface BootDeps {
@@ -27,7 +28,8 @@ export async function runBoot(deps: BootDeps): Promise<Boot> {
   initAnalytics();
   if ((await repos.settings.get('analytics_enabled')) === '0') setAnalyticsEnabled(false);
   track('app_opened', {});
-  return { store, repos };
+  const onboardingDone = (await repos.settings.get('onboarding_done')) === '1';
+  return { store, repos, onboardingDone };
 }
 
 let bootPromise: Promise<Boot> | null = null;

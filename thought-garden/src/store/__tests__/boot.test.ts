@@ -20,6 +20,7 @@ describe('bootOnce', () => {
     const deps = { openDb, newId: () => `id${++n}` };
     const [a, b] = await Promise.all([bootOnce(deps), bootOnce(deps)]);
     expect(a).toBe(b);
+    expect(a.onboardingDone).toBe(false);
     expect(openDb).toHaveBeenCalledTimes(1);
     expect(a.store.getState().beds.filter((x) => x.isIdeas)).toHaveLength(1);
     expect(capture.mock.calls.filter((c) => c[0] === 'app_opened')).toHaveLength(1);

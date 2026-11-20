@@ -6,6 +6,7 @@
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/ui": "~58.0.29",
+    "@react-native-community/datetimepicker": "9.2.1",
     "date-fns": "^4.4.0",
     "expo": "~58.0.26",
     "expo-application": "~58.1.2",
@@ -60,7 +61,10 @@
   "private": true,
   "jest": {
     "preset": "jest-expo",
-    "testPathIgnorePatterns": ["/node_modules/", "/__tests__/nodeDb\\.ts$"],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/__tests__/nodeDb\\.ts$"
+    ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
     }

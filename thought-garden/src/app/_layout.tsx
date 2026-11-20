@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { colors } from '@/ui/tokens';
 import { bootOnce, type Boot } from '@/store/boot';
 import { AppProvider } from '@/store/AppProvider';
+import { useOnboardingState } from '@/store/onboardingState';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -27,6 +28,7 @@ export default function RootLayout() {
     let cancelled = false;
     bootOnce().then(
       (b) => {
+        useOnboardingState.getState().seed(b.onboardingDone);
         if (!cancelled) setBoot(b);
       },
       (e) => {
