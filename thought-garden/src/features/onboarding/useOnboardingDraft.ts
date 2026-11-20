@@ -6,6 +6,8 @@ export interface DraftBed {
   key: string;
   name: string;
   selected: boolean;
+  /** Set once the bed has been created, so a retry skips it. */
+  bedId?: string;
 }
 
 export const MAX_BEDS = 6;
@@ -18,6 +20,7 @@ interface Draft {
   toggle(key: string): void;
   rename(key: string, name: string): void;
   addCustom(): string;
+  setBedId(key: string, bedId: string): void;
   setFirstBedId(id: string): void;
   reset(): void;
 }
@@ -40,6 +43,7 @@ export const useOnboardingDraft = create<Draft>()((set) => ({
     set((s) => ({ beds: [...s.beds, { key, name: 'New bed', selected: true }] }));
     return key;
   },
+  setBedId: (key, bedId) => set((s) => ({ beds: s.beds.map((b) => (b.key === key ? { ...b, bedId } : b)) })),
   setFirstBedId: (firstBedId) => set({ firstBedId }),
   reset: () => set({ persona: null, beds: [], firstBedId: null }),
 }));

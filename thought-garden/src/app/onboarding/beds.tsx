@@ -12,7 +12,7 @@ export default function Beds() {
   const router = useRouter();
   const repos = useRepos();
   const addBed = useGarden((s) => s.addBed);
-  const { persona, beds, toggle, rename, addCustom, setFirstBedId } = useOnboardingDraft();
+  const { persona, beds, toggle, rename, addCustom, setBedId, setFirstBedId } = useOnboardingDraft();
   const [editing, setEditing] = useState<string | null>(null);
   const busy = useRef(false);
 
@@ -24,12 +24,12 @@ export default function Beds() {
     busy.current = true;
     try {
       if (persona) await repos.settings.set('persona', persona);
-      let first: string | null = null;
       for (const b of selected) {
+        if (b.bedId) continue;
         const bed = await addBed(b.name.trim());
-        if (first === null) first = bed.id;
+        setBedId(b.key, bed.id);
+        if (!useOnboardingDraft.getState().firstBedId) setFirstBedId(bed.id);
       }
-      if (first) setFirstBedId(first);
       router.push('/onboarding/first-plant');
     } catch (e) {
       console.error('Onboarding beds failed', e);

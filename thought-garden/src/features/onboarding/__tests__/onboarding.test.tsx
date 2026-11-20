@@ -77,6 +77,26 @@ describe('onboarding', () => {
     expect(useOnboardingDraft.getState().firstBedId).toBe('b1');
   });
 
+  it('retry after a partial failure does not duplicate beds', async () => {
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    useOnboardingDraft.getState().setPersona('jobPrep');
+    let n = 0;
+    addBed.mockImplementation(async (name: string) => {
+      n += 1;
+      if (n === 2) throw new Error('boom');
+      return { id: `b${n}`, name };
+    });
+    await render(<Beds />);
+    await fireEvent.press(continueBtn());
+    await waitFor(() => expect(err).toHaveBeenCalled());
+    expect(mockRouter.push).not.toHaveBeenCalled();
+    await fireEvent.press(continueBtn());
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/first-plant'));
+    expect(addBed.mock.calls.map((c) => c[0])).toEqual(['Interview', 'DSA', 'DSA', 'Resume', 'Portfolio']); // DSA: one failed attempt, one retry; Interview not repeated
+    expect(useOnboardingDraft.getState().firstBedId).toBe('b1');
+    err.mockRestore();
+  });
+
   it('first plant preselects first kept bed and auto-waters', async () => {
     useOnboardingDraft.setState({ persona: 'jobPrep', firstBedId: 'b1' });
     await render(<FirstPlant />);
