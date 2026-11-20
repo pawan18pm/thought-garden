@@ -53,6 +53,7 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     padding: 20,
     paddingBottom: 32,
+    maxHeight: '90%',
   },
   handle: {
     alignSelf: 'center',

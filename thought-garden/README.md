@@ -2,6 +2,16 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## Running locally
+
+1. `npm install`
+2. `npx expo start --lan` (phone and computer on the same Wi-Fi).
+3. Open the project in [Expo Go](https://expo.dev/go) on the iPhone by scanning the QR code.
+
+Typed routes (`.expo/types`) are regenerated on the first `expo start`, so run it once before `npx tsc --noEmit` on a fresh clone.
+
+Checks: `npx jest`, `npx tsc --noEmit`. Manual checks are in `../docs/qa-checklist.md`.
+
 ## Get started
 
 1. Install dependencies

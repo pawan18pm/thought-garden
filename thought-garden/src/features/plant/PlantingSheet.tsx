@@ -4,6 +4,7 @@ import { Sheet } from '@/ui/Sheet';
 import { ChunkyButton } from '@/ui/ChunkyButton';
 import { useGarden } from '@/store/AppProvider';
 import { MAX_THOUGHT_LENGTH, validateThought } from '@/domain/validate';
+import { orderBeds } from '@/domain/ordering';
 import type { Priority } from '@/domain/types';
 import { colors, fonts } from '@/ui/tokens';
 import { Chip } from './Chip';
@@ -40,7 +41,7 @@ export function PlantingSheet({ visible, initialBedId, onClose }: Props) {
     }
   }, [visible]);
 
-  const ordered = [...beds].sort((a, b) => Number(a.isIdeas) - Number(b.isIdeas) || a.position - b.position);
+  const ordered = orderBeds(beds);
   const ideasId = beds.find((b) => b.isIdeas)?.id;
   const explicitBedId = chosenBedId ?? initialBedId;
   const effectiveBedId = explicitBedId ?? lastBedId ?? ideasId;

@@ -33,10 +33,24 @@ export function useReminderLifecycle(settings: SettingsStore): void {
       prev = next;
     });
 
-    const respSub = Notifications.addNotificationResponseReceivedListener(() => track('reminder_opened', {}));
+    // Clear after handling so the same tap isn't counted again on the next mount or cold start.
+    const clear = () => {
+      try {
+        void Promise.resolve(Notifications.clearLastNotificationResponseAsync?.()).catch(() => {});
+      } catch {
+        /* older runtime without the API */
+      }
+    };
+    const respSub = Notifications.addNotificationResponseReceivedListener(() => {
+      track('reminder_opened', {});
+      clear();
+    });
     Notifications.getLastNotificationResponseAsync()
       .then((r) => {
-        if (r) track('reminder_opened', {});
+        if (r) {
+          track('reminder_opened', {});
+          clear();
+        }
       })
       .catch(() => {});
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useGarden } from '@/store/AppProvider';
 import { ChunkyButton } from '@/ui/ChunkyButton';
@@ -32,15 +32,24 @@ function BedRow({ bed, index, count, ids }: { bed: Bed; index: number; count: nu
   const removeBed = useGarden((s) => s.removeBed);
   const reorderBeds = useGarden((s) => s.reorderBeds);
   const [name, setName] = useState(bed.name);
+  const saved = useRef(bed.name);
+  useEffect(() => {
+    saved.current = bed.name;
+    setName(bed.name);
+  }, [bed.name]);
 
   const commitName = () => {
     const clean = validName(name);
     if (!clean) {
-      setName(bed.name);
+      setName(saved.current);
       return;
     }
     setName(clean);
-    if (clean !== bed.name) void renameBed(bed.id, clean);
+    // Submit, blur and end-editing can all fire for one edit; save only once.
+    if (clean !== saved.current) {
+      saved.current = clean;
+      void renameBed(bed.id, clean);
+    }
   };
 
   const move = (delta: number) => {
@@ -64,6 +73,8 @@ function BedRow({ bed, index, count, ids }: { bed: Bed; index: number; count: nu
           value={name}
           onChangeText={setName}
           onEndEditing={commitName}
+          onBlur={commitName}
+          onSubmitEditing={commitName}
           maxLength={MAX_NAME}
           accessibilityLabel={`Rename ${bed.name}`}
           returnKeyType="done"

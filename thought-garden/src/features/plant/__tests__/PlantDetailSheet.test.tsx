@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { PlantDetailSheet } from '../PlantDetailSheet';
 import { bedA, bedB, ideas, mkPlant } from '../__fixtures__/fixtures';
 
@@ -13,6 +13,18 @@ jest.mock('react-native-reanimated', () => {
     useAnimatedStyle: (fn: () => object) => fn(),
     withTiming: (v: unknown) => v,
     withSequence: (...v: unknown[]) => v[v.length - 1],
+  };
+});
+
+// Plain Text stand-in so a test can invoke onPress twice inside one act().
+jest.mock('@/ui/ChunkyButton', () => {
+  const { Text } = require('react-native');
+  return {
+    ChunkyButton: ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
+      <Text accessibilityLabel={label} accessibilityState={{ disabled: !!disabled }} onPress={disabled ? undefined : onPress}>
+        {label}
+      </Text>
+    ),
   };
 });
 
@@ -109,6 +121,43 @@ describe('PlantDetailSheet', () => {
     await fireEvent.press(screen.getByText('Move bed'));
     await fireEvent.press(screen.getByLabelText('Move to DSA'));
     expect(fns.edit).toHaveBeenCalledWith('p1', { bedId: 'bB' });
+  });
+});
+
+describe('PlantDetailSheet guards', () => {
+  it('two quick Water presses call water once', async () => {
+    let release: () => void = () => {};
+    fns.water.mockImplementation(() => new Promise<void>((r) => { release = r; }));
+    await open();
+    const btn = screen.getByLabelText('Water');
+    // Both presses land before the first action settles (fireEvent would await the pending handler).
+    await act(async () => {
+      btn.props.onPress();
+      btn.props.onPress();
+    });
+    expect(fns.water).toHaveBeenCalledTimes(1);
+    await act(async () => release());
+  });
+
+  it('two quick Bloom presses call bloom once', async () => {
+    let release: () => void = () => {};
+    fns.bloom.mockImplementation(() => new Promise<void>((r) => { release = r; }));
+    await open();
+    const btn = screen.getByLabelText('Bloom');
+    // Both presses land before the first action settles (fireEvent would await the pending handler).
+    await act(async () => {
+      btn.props.onPress();
+      btn.props.onPress();
+    });
+    expect(fns.bloom).toHaveBeenCalledTimes(1);
+    await act(async () => release());
+  });
+
+  it('edit field is clamped to 140 with a counter', async () => {
+    await open();
+    await fireEvent.press(screen.getByLabelText('Edit text'));
+    expect(screen.getByLabelText('Edit thought').props.maxLength).toBe(140);
+    expect(screen.getByText('9/140')).toBeTruthy();
   });
 });
 

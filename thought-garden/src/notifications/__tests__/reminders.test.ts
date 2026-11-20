@@ -34,6 +34,13 @@ beforeEach(() => {
 });
 
 describe('reminders', () => {
+  it('invalid time: returns false before asking for permission', async () => {
+    await expect(enableReminder('9pm')).resolves.toBe(false);
+    expect(N.getPermissionsAsync).not.toHaveBeenCalled();
+    expect(N.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(store.reminder_enabled).toBeUndefined();
+  });
+
   it('permission denied: returns false, stores 0, never schedules, tracks denial', async () => {
     N.requestPermissionsAsync.mockResolvedValue({ status: 'denied' } as never);
     await expect(enableReminder('21:00')).resolves.toBe(false);

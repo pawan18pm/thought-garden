@@ -178,7 +178,13 @@ function DevSection() {
 
 export default function Settings() {
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      automaticallyAdjustKeyboardInsets
+    >
       <Stack.Screen options={{ headerShown: true, title: 'Settings' }} />
       <ReminderSection />
       <Section title="Manage beds">

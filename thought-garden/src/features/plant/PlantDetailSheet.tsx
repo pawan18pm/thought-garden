@@ -6,7 +6,8 @@ import { ChunkyButton } from '@/ui/ChunkyButton';
 import { PlantArt } from '@/ui/PlantArt';
 import { useReducedMotion } from '@/ui/useReducedMotion';
 import { useGarden } from '@/store/AppProvider';
-import { validateThought } from '@/domain/validate';
+import { MAX_THOUGHT_LENGTH, validateThought } from '@/domain/validate';
+import { orderBeds } from '@/domain/ordering';
 import { stageOf } from '@/domain/stages';
 import type { Plant } from '@/domain/types';
 import { bedColors, colors, fonts } from '@/ui/tokens';
@@ -40,10 +41,13 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
   if (live) lastRef.current = live;
   const plant = live ?? (closing ? lastRef.current : undefined);
 
+  const [busyUi, setBusyUi] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [panel, setPanel] = useState<'priority' | 'bed' | null>(null);
   const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+  const busy = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -51,34 +55,57 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
     setPanel(null);
     setClosing(false);
     scale.value = 1;
+    opacity.value = 1;
+    busy.current = false;
+    setBusyUi(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plantId]);
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  const artStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const artStyle = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
 
   if (!plant) return <Sheet visible={false} onClose={onClose}>{null}</Sheet>;
 
   const bed = beds.find((b) => b.id === plant.bedId);
   const flower = bed && bed.color !== 'ideas' ? bedColors[bed.color] : undefined;
-  const orderedBeds = [...beds].sort((a, b) => Number(a.isIdeas) - Number(b.isIdeas) || a.position - b.position);
+  const orderedBeds = orderBeds(beds);
+
+  // Reduce Motion substitute: a short opacity pulse, no scale or movement.
+  const pulse = () => {
+    opacity.value = withSequence(withTiming(0.35, { duration: 100 }), withTiming(1, { duration: 100 }));
+  };
 
   const onWater = async () => {
-    await water(plant.id);
-    if (!reduced) scale.value = withSequence(withTiming(1.25, { duration: 140 }), withTiming(1, { duration: 160 }));
+    if (busy.current) return;
+    busy.current = true;
+    setBusyUi(true);
+    try {
+      await water(plant.id);
+      if (reduced) pulse();
+      else scale.value = withSequence(withTiming(1.25, { duration: 140 }), withTiming(1, { duration: 160 }));
+    } finally {
+      busy.current = false;
+      setBusyUi(false);
+    }
   };
 
   const onBloom = async () => {
+    if (busy.current) return;
+    busy.current = true;
+    setBusyUi(true);
     // Snapshot first: the store update inside bloom() removes the plant before the promise resolves.
     setClosing(true);
     try {
       await bloom(plant.id);
     } catch (e) {
       setClosing(false);
+      busy.current = false;
+      setBusyUi(false);
       throw e;
     }
     if (reduced) {
-      onClose();
+      pulse();
+      timer.current = setTimeout(onClose, 220);
       return;
     }
     scale.value = withSequence(withTiming(1.4, { duration: 160 }), withTiming(1, { duration: 140 }));
@@ -125,8 +152,12 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
               autoFocus
               returnKeyType="done"
               blurOnSubmit
+              maxLength={MAX_THOUGHT_LENGTH}
               onSubmitEditing={saveText}
             />
+            <Text style={styles.counter}>
+              {draft.length}/{MAX_THOUGHT_LENGTH}
+            </Text>
             <View style={styles.row}>
               <Chip label="Cancel" accessibilityLabel="Cancel edit" onPress={() => setEditing(false)} />
               <Chip label="Save" accessibilityLabel="Save text" selected onPress={saveText} />
@@ -151,8 +182,8 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
         <Text style={styles.meta}>{waterCopy(plant.waterCount)}</Text>
 
         <View style={[styles.row, styles.actions]}>
-          <ChunkyButton label="Water" onPress={onWater} />
-          <ChunkyButton label="Bloom" tone="primary" onPress={onBloom} />
+          <ChunkyButton label="Water" onPress={onWater} disabled={busyUi} />
+          <ChunkyButton label="Bloom" tone="primary" onPress={onBloom} disabled={busyUi} />
         </View>
 
         <Pressable style={styles.link} accessibilityRole="button" onPress={() => setPanel(panel === 'priority' ? null : 'priority')}>
@@ -216,8 +247,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 16,
     color: colors.ink,
-    marginBottom: 8,
+    marginBottom: 4,
   },
+  counter: { fontFamily: fonts.body, fontSize: 12, color: colors.muted, textAlign: 'right', marginBottom: 8 },
   meta: { fontFamily: fonts.body, fontSize: 14, color: colors.muted, textAlign: 'center' },
   row: { flexDirection: 'row', gap: 8 },
   actions: { justifyContent: 'center', marginTop: 16, marginBottom: 8 },

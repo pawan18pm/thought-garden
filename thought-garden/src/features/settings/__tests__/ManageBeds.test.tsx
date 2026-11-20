@@ -66,4 +66,18 @@ describe('ManageBeds', () => {
     await fireEvent.press(screen.getByLabelText('Add bed'));
     await waitFor(() => expect(addBed).toHaveBeenCalledWith('Garden'));
   });
+
+  it('saves a rename once on blur + submit, and re-syncs when the bed name changes', async () => {
+    const view = await render(<ManageBeds />);
+    const input = screen.getByLabelText('Rename Alpha');
+    await fireEvent.changeText(input, '  Alpha 2 ');
+    await fireEvent(input, 'submitEditing');
+    await fireEvent(input, 'blur');
+    expect(renameBed).toHaveBeenCalledTimes(1);
+    expect(renameBed).toHaveBeenCalledWith('a', 'Alpha 2');
+
+    (mockState.beds as { id: string; name: string }[])[0] = { id: 'a', name: 'Renamed elsewhere', color: 'blue', isIdeas: false } as never;
+    await view.rerender(<ManageBeds />);
+    expect(screen.getByLabelText('Rename Renamed elsewhere').props.value).toBe('Renamed elsewhere');
+  });
 });

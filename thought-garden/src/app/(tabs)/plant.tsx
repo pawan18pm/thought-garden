@@ -3,6 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGarden } from '@/store/AppProvider';
+import { orderBeds } from '@/domain/ordering';
 import { greetingFor } from '@/domain/greeting';
 import { BedCard } from '@/ui/BedCard';
 import { PlantItButton } from '@/ui/PlantItButton';
@@ -24,7 +25,7 @@ export default function PlantTab() {
   const [sheetBedId, setSheetBedId] = useState<string | undefined>(undefined);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const ordered = [...beds].sort((a, b) => Number(a.isIdeas) - Number(b.isIdeas) || a.position - b.position);
+  const ordered = orderBeds(beds);
   const n = plants.length;
   const greeting = `${greetingFor(new Date().getHours())} · ${n} ${n === 1 ? 'plant' : 'plants'} growing`;
 

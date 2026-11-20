@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { PlantStake } from '@/ui/PlantStake';
-import { BedCard } from '@/ui/BedCard';
+import { BedCard, plantLabel } from '@/ui/BedCard';
 import { PlantItButton } from '@/ui/PlantItButton';
 import type { Bed, Plant } from '@/domain/types';
 
@@ -84,5 +84,13 @@ describe('PlantItButton', () => {
   it('has the accessibility label', async () => {
     await render(<PlantItButton onPress={noop} />);
     expect(screen.getByLabelText('Plant a thought')).toBeTruthy();
+  });
+});
+
+describe('plantLabel', () => {
+  it('includes priority and stage', () => {
+    expect(plantLabel({ ...mk(1), text: 'Learn SQL', priority: 3, waterCount: 3 })).toBe('High priority: Learn SQL, growing');
+    expect(plantLabel({ ...mk(1), text: 'Mock', priority: 2 })).toBe('Medium priority: Mock, seed');
+    expect(plantLabel({ ...mk(1), text: 'Case', priority: null, bloomedAt: '2026-01-02T00:00:00Z' })).toBe('Case, bloom');
   });
 });

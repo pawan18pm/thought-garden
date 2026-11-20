@@ -14,6 +14,13 @@ interface Props {
   onToggleFold: () => void;
 }
 
+const PRIORITY_WORD = { 3: 'High priority: ', 2: 'Medium priority: ', 1: '' } as const;
+
+export function plantLabel(p: Plant): string {
+  const prefix = p.priority ? PRIORITY_WORD[p.priority] : '';
+  return `${prefix}${p.text}, ${stageOf(p)}`;
+}
+
 export function BedCard({ bed, plants, onPlantPress, onAddPress, onToggleFold }: Props) {
   const fill = bed.color === 'ideas' ? colors.ideasBed : bedColors[bed.color];
   const flower = bed.color === 'ideas' ? undefined : bedColors[bed.color];
@@ -56,7 +63,7 @@ export function BedCard({ bed, plants, onPlantPress, onAddPress, onToggleFold }:
                     style={styles.plant}
                     onPress={() => onPlantPress(p.id)}
                     accessibilityRole="button"
-                    accessibilityLabel={p.text}
+                    accessibilityLabel={plantLabel(p)}
                   >
                     <PlantArt stage={stageOf(p)} size={48} flowerColor={flower} />
                     <PlantStake text={p.text} priority={p.priority} />
