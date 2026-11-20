@@ -12,10 +12,16 @@ import { colors } from '@/ui/tokens';
 import { bootOnce, type Boot } from '@/store/boot';
 import { AppProvider } from '@/store/AppProvider';
 import { useReminderLifecycle } from '@/notifications/useReminderLifecycle';
+import { useDayRollover } from '@/store/useDayRollover';
 import { useOnboardingState } from '@/store/onboardingState';
 
 function ReminderLifecycle({ settings }: { settings: Boot['repos']['settings'] }) {
   useReminderLifecycle(settings);
+  return null;
+}
+
+function DayRollover({ store }: { store: Boot['store'] }) {
+  useDayRollover(store);
   return null;
 }
 
@@ -73,6 +79,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
       <AppProvider store={boot.store} repos={boot.repos}>
         <ReminderLifecycle settings={boot.repos.settings} />
+        <DayRollover store={boot.store} />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }} />
       </AppProvider>
     </GestureHandlerRootView>
