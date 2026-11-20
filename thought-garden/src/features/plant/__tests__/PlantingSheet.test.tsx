@@ -84,6 +84,18 @@ describe('PlantingSheet', () => {
     expect(plant).toHaveBeenCalledWith('Mock interview', 'bB', 3, 'fab');
   });
 
+  it('maps the – chip to Low (1) and tapping again deselects', async () => {
+    await render(<PlantingSheet visible onClose={() => {}} />);
+    await fireEvent.changeText(input(), 'Low one');
+    await fireEvent.press(screen.getByLabelText('Priority –'));
+    await fireEvent.press(planter());
+    expect(plant).toHaveBeenLastCalledWith('Low one', undefined, 1, 'fab');
+    await fireEvent.changeText(input(), 'None again');
+    await fireEvent.press(screen.getByLabelText('Priority –')); // still selected: deselects
+    await fireEvent.press(planter());
+    expect(plant).toHaveBeenLastCalledWith('None again', undefined, null, 'fab');
+  });
+
   it('unfolds a folded target bed after planting', async () => {
     Object.assign(state, { beds: [{ ...bedA, folded: true }, bedB, ideas] });
     await render(<PlantingSheet visible initialBedId="bA" onClose={() => {}} />);

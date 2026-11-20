@@ -6,7 +6,8 @@ import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
 import { ChunkyButton } from '@/ui/ChunkyButton';
 import { PlantArt } from '@/ui/PlantArt';
 import { useReducedMotion } from '@/ui/useReducedMotion';
-import { useGarden } from '@/store/AppProvider';
+import { useGarden, useRepos } from '@/store/AppProvider';
+import { useOnboardingState } from '@/store/onboardingState';
 import { validateThought } from '@/domain/validate';
 import { border, colors, fonts } from '@/ui/tokens';
 
@@ -14,6 +15,7 @@ const GROW_MS = 900;
 
 export default function FirstPlant() {
   const router = useRouter();
+  const repos = useRepos();
   const reduced = useReducedMotion();
   const firstBedId = useOnboardingDraft((s) => s.firstBedId);
   const bedName = useGarden((s) => s.beds.find((b) => b.id === firstBedId)?.name ?? '');
@@ -43,6 +45,9 @@ export default function FirstPlant() {
         return;
       }
       await water(p.id);
+      // Mark onboarding complete now so an app kill on Reminder cannot rerun it.
+      await repos.settings.set('onboarding_done', '1');
+      useOnboardingState.getState().setDone(true);
       setGrown(true);
       if (reduced) router.push('/onboarding/reminder');
       else timer.current = setTimeout(() => router.push('/onboarding/reminder'), GROW_MS);

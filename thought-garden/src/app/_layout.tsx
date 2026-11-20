@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import {
@@ -20,12 +20,14 @@ function ReminderLifecycle({ settings }: { settings: Boot['repos']['settings'] }
 }
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_700Bold,
     BricolageGrotesque_800ExtraBold,
     Inter_400Regular,
     Inter_600SemiBold,
   });
+  const loaded = fontsLoaded || !!fontError;
+  const [attempt, setAttempt] = useState(0);
   const [boot, setBoot] = useState<Boot | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -45,13 +47,24 @@ export default function RootLayout() {
     return () => {
       cancelled = true;
     };
-  }, [loaded]);
+  }, [loaded, attempt]);
 
   if (!loaded) return null;
   if (failed) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' }}>
-        <Text>Something went wrong</Text>
+        <Text style={{ fontSize: 16, color: colors.ink, marginBottom: 16 }}>Something went wrong. Let's try that again.</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+          onPress={() => {
+            setFailed(false);
+            setAttempt((n) => n + 1);
+          }}
+          style={{ minHeight: 44, paddingHorizontal: 24, justifyContent: 'center' }}
+        >
+          <Text style={{ fontSize: 16, color: colors.ink }}>Try again</Text>
+        </Pressable>
       </View>
     );
   }

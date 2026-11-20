@@ -198,7 +198,7 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
                 accessibilityLabel={`Set priority ${c.label}`}
                 selected={plant.priority === c.value}
                 onPress={async () => {
-                  await edit(plant.id, { priority: c.value });
+                  await edit(plant.id, { priority: plant.priority === c.value ? null : c.value });
                   setPanel(null);
                 }}
               />

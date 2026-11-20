@@ -32,6 +32,7 @@ export async function enableReminder(time: string): Promise<boolean> {
   try {
     if (!/^\d{2}:\d{2}$/.test(time)) throw new Error(`Invalid reminder time: ${time}`);
     const s = store();
+    await s.set('reminder_time', time);
     let status = (await Notifications.getPermissionsAsync()).status;
     if (status !== 'granted') status = (await Notifications.requestPermissionsAsync()).status;
     if (status !== 'granted') {
@@ -40,7 +41,6 @@ export async function enableReminder(time: string): Promise<boolean> {
       return false;
     }
     await s.set('reminder_enabled', '1');
-    await s.set('reminder_time', time);
     track('reminder_enabled', { time: time as `${number}:${number}` });
     await rescheduleReminders();
     return true;

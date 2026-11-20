@@ -12,6 +12,7 @@ export default function Beds() {
   const router = useRouter();
   const repos = useRepos();
   const addBed = useGarden((s) => s.addBed);
+  const storeBeds = useGarden((s) => s.beds);
   const { persona, beds, toggle, rename, addCustom, setBedId, setFirstBedId } = useOnboardingDraft();
   const [editing, setEditing] = useState<string | null>(null);
   const busy = useRef(false);
@@ -24,6 +25,14 @@ export default function Beds() {
     busy.current = true;
     try {
       if (persona) await repos.settings.set('persona', persona);
+      const existingUser = storeBeds.filter((b) => !b.isIdeas);
+      const draftHasCreated = beds.some((b) => b.bedId);
+      if (existingUser.length > 0 && !draftHasCreated) {
+        // Onboarding was interrupted earlier: beds already exist, do not recreate them.
+        if (!useOnboardingDraft.getState().firstBedId) setFirstBedId(existingUser[0].id);
+        router.push('/onboarding/first-plant');
+        return;
+      }
       for (const b of selected) {
         if (b.bedId) continue;
         const bed = await addBed(b.name.trim());

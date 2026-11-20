@@ -40,7 +40,7 @@ beforeEach(() => {
   plant.mockImplementation(async (text: string, bedId: string) => ({ id: 'p1', text, bedId }));
   water.mockResolvedValue(undefined);
   Object.keys(mockState).forEach((k) => delete mockState[k]);
-  Object.assign(mockState, { addBed, plant, water, beds: [{ id: 'ideas', name: 'Ideas', isIdeas: true }, { id: 'b1', name: 'Interview', isIdeas: false }] });
+  Object.assign(mockState, { addBed, plant, water, beds: [{ id: 'ideas', name: 'Ideas', isIdeas: true }] });
 });
 
 const continueBtn = () => screen.getByLabelText('Continue');
@@ -99,8 +99,32 @@ describe('onboarding', () => {
     err.mockRestore();
   });
 
+  it('Continue reuses existing user beds instead of recreating them', async () => {
+    mockState.beds = [
+      { id: 'ideas', name: 'Ideas', isIdeas: true },
+      { id: 'u1', name: 'Interview', isIdeas: false },
+    ];
+    useOnboardingDraft.getState().setPersona('jobPrep');
+    await render(<Beds />);
+    await fireEvent.press(continueBtn());
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/first-plant'));
+    expect(addBed).not.toHaveBeenCalled();
+    expect(useOnboardingDraft.getState().firstBedId).toBe('u1');
+  });
+
+  it('first plant marks onboarding done right after planting', async () => {
+    useOnboardingDraft.setState({ persona: 'jobPrep', firstBedId: 'b1' });
+    mockState.beds = [{ id: 'b1', name: 'Interview', isIdeas: false }];
+    await render(<FirstPlant />);
+    await fireEvent.changeText(screen.getByLabelText('Your first thought'), 'Something');
+    await fireEvent.press(screen.getByLabelText('Plant it'));
+    await waitFor(() => expect(mockSettingsSet).toHaveBeenCalledWith('onboarding_done', '1'));
+    expect(useOnboardingState.getState().done).toBe(true);
+  });
+
   it('first plant preselects first kept bed and auto-waters', async () => {
     useOnboardingDraft.setState({ persona: 'jobPrep', firstBedId: 'b1' });
+    mockState.beds = [{ id: 'b1', name: 'Interview', isIdeas: false }];
     await render(<FirstPlant />);
     expect(screen.getByText('Interview')).toBeTruthy();
     expect(screen.queryByText('Ideas')).toBeNull();

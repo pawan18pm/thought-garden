@@ -18,7 +18,7 @@ interface Props {
 export const PRIORITY_CHIPS: { label: string; value: Priority }[] = [
   { label: '▲▲', value: 3 },
   { label: '▲', value: 2 },
-  { label: '–', value: null },
+  { label: '–', value: 1 },
 ];
 
 export function PlantingSheet({ visible, initialBedId, onClose }: Props) {
@@ -104,7 +104,7 @@ export function PlantingSheet({ visible, initialBedId, onClose }: Props) {
             label={c.label}
             accessibilityLabel={`Priority ${c.label}`}
             selected={priority === c.value}
-            onPress={() => setPriority(c.value)}
+            onPress={() => setPriority(priority === c.value ? null : c.value)}
           />
         ))}
       </View>

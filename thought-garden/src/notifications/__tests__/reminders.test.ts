@@ -45,6 +45,7 @@ describe('reminders', () => {
     N.requestPermissionsAsync.mockResolvedValue({ status: 'denied' } as never);
     await expect(enableReminder('21:00')).resolves.toBe(false);
     expect(store.reminder_enabled).toBe('0');
+    expect(store.reminder_time).toBe('21:00');
     expect(N.scheduleNotificationAsync).not.toHaveBeenCalled();
     expect(mockTrack).toHaveBeenCalledWith('reminder_permission_denied', {});
   });

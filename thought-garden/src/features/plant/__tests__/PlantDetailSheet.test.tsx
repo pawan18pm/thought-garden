@@ -109,6 +109,13 @@ describe('PlantDetailSheet', () => {
     expect(fns.edit).not.toHaveBeenCalled();
   });
 
+  it('sets priority – to Low (1)', async () => {
+    await open();
+    await fireEvent.press(screen.getByText('Change priority'));
+    await fireEvent.press(screen.getByLabelText('Set priority –'));
+    expect(fns.edit).toHaveBeenCalledWith('p1', { priority: 1 });
+  });
+
   it('changes priority', async () => {
     await open();
     await fireEvent.press(screen.getByText('Change priority'));

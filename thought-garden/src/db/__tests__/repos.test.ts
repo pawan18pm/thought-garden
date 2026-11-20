@@ -20,6 +20,23 @@ describe('repos', () => {
     await expect(migrate(db)).resolves.toBeUndefined();
   });
 
+  it('migrate sets user_version 1 and is repeatable', async () => {
+    const db = createNodeDb();
+    await migrate(db);
+    await migrate(db);
+    expect((await db.first<{ user_version: number }>('PRAGMA user_version'))?.user_version).toBe(1);
+  });
+
+  it('migrate does not crash when duplicate Ideas beds already exist', async () => {
+    const db = createNodeDb();
+    await db.exec(`CREATE TABLE beds (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, color TEXT NOT NULL, position INTEGER NOT NULL, is_ideas INTEGER NOT NULL DEFAULT 0, folded INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
+      INSERT INTO beds VALUES ('a','Ideas','x',0,1,0,'t'),('b','Ideas','x',1,1,0,'t');`);
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await expect(migrate(db)).resolves.toBeUndefined();
+    warn.mockRestore();
+    expect((await db.first<{ user_version: number }>('PRAGMA user_version'))?.user_version).toBe(1);
+  });
+
   it('listActive excludes bloomed and deleted, includes waterCount', async () => {
     const r = await setup();
     const bed = await r.beds.create('A');
