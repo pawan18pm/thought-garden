@@ -194,6 +194,42 @@ describe('repos', () => {
     expect(d.planted).toHaveLength(0);
   });
 
+  it('range spans months, picks earliest bloom color, excludes deleted', async () => {
+    const r = await setup();
+    const blue = await r.beds.create('B1'); // first color: blue
+    const pink = await r.beds.create('B2');
+    await r.beds.setColor(pink.id, 'pink');
+    const p1 = await r.plants.create({ text: '1', bedId: blue.id, priority: null });
+    const p2 = await r.plants.create({ text: '2', bedId: pink.id, priority: null });
+    const p3 = await r.plants.create({ text: '3', bedId: pink.id, priority: null });
+    clock = '2026-11-30T09:00:00+05:30';
+    await r.plants.bloom(p1.id);
+    clock = '2026-11-30T11:00:00+05:30';
+    await r.plants.bloom(p2.id);
+    clock = '2026-12-02T11:00:00+05:30';
+    await r.plants.water(p3.id);
+    clock = '2026-12-03T11:00:00+05:30';
+    await r.plants.bloom(p3.id);
+    await r.plants.remove(p3.id);
+    const out = await r.activity.range('2026-11-30', '2026-12-06');
+    expect(out['2026-11-30']).toMatchObject({ bloomed: 2, bloomColor: 'blue' });
+    expect(Object.keys(out)).toEqual(['2026-11-30']);
+  });
+
+  it('range includes days from both months', async () => {
+    const r = await setup();
+    const b = await r.beds.create('B');
+    const p = await r.plants.create({ text: '1', bedId: b.id, priority: null });
+    clock = '2026-11-30T10:00:00+05:30';
+    await r.plants.water(p.id);
+    clock = '2026-12-02T10:00:00+05:30';
+    await r.plants.water(p.id);
+    const out = await r.activity.range('2026-11-30', '2026-12-06');
+    expect(out['2026-11-30'].watered).toBe(1);
+    expect(out['2026-12-02'].watered).toBe(1);
+    expect(out['2026-11-19']).toBeUndefined();
+  });
+
   it('settings get/set', async () => {
     const r = await setup();
     expect(await r.settings.get('k')).toBeNull();

@@ -167,32 +167,49 @@ export function createRepos(db: Db, newId: () => string, now: () => string) {
         bloomed: await countOf('SELECT COUNT(*) AS c FROM plants WHERE deleted_at IS NULL AND substr(bloomed_at, 1, 10) = ?', [key]),
       };
     },
-    async month(year: number, month0: number): Promise<Record<string, DayActivity>> {
-      const prefix = `${year}-${String(month0 + 1).padStart(2, '0')}-`;
-      const like = `${prefix}%`;
-      const out: Record<string, DayActivity> = {};
+    async range(startKey: string, endKey: string): Promise<Record<string, DayActivity & { bloomColor?: BedColorKey | 'ideas' }>> {
+      const out: Record<string, DayActivity & { bloomColor?: BedColorKey | 'ideas' }> = {};
       const bump = (rows: { d: string; c: number }[], field: keyof DayActivity) => {
         for (const r of rows) {
           out[r.d] ??= { planted: 0, watered: 0, bloomed: 0 };
           out[r.d][field] = r.c;
         }
       };
+      const args = [startKey, endKey];
       bump(
-        await db.all('SELECT substr(created_at, 1, 10) AS d, COUNT(*) AS c FROM plants WHERE deleted_at IS NULL AND created_at LIKE ? GROUP BY d', [like]),
+        await db.all(
+          'SELECT substr(created_at, 1, 10) AS d, COUNT(*) AS c FROM plants WHERE deleted_at IS NULL AND substr(created_at, 1, 10) BETWEEN ? AND ? GROUP BY d',
+          args,
+        ),
         'planted',
       );
       bump(
         await db.all(
-          'SELECT substr(w.watered_at, 1, 10) AS d, COUNT(*) AS c FROM waterings w JOIN plants p ON p.id = w.plant_id WHERE p.deleted_at IS NULL AND w.watered_at LIKE ? GROUP BY d',
-          [like],
+          'SELECT substr(w.watered_at, 1, 10) AS d, COUNT(*) AS c FROM waterings w JOIN plants p ON p.id = w.plant_id WHERE p.deleted_at IS NULL AND substr(w.watered_at, 1, 10) BETWEEN ? AND ? GROUP BY d',
+          args,
         ),
         'watered',
       );
       bump(
-        await db.all('SELECT substr(bloomed_at, 1, 10) AS d, COUNT(*) AS c FROM plants WHERE deleted_at IS NULL AND bloomed_at LIKE ? GROUP BY d', [like]),
+        await db.all(
+          'SELECT substr(bloomed_at, 1, 10) AS d, COUNT(*) AS c FROM plants WHERE deleted_at IS NULL AND bloomed_at IS NOT NULL AND substr(bloomed_at, 1, 10) BETWEEN ? AND ? GROUP BY d',
+          args,
+        ),
         'bloomed',
       );
+      const colorRows = await db.all<{ d: string; color: string }>(
+        'SELECT substr(p.bloomed_at, 1, 10) AS d, b.color AS color FROM plants p JOIN beds b ON b.id = p.bed_id WHERE p.deleted_at IS NULL AND p.bloomed_at IS NOT NULL AND substr(p.bloomed_at, 1, 10) BETWEEN ? AND ? ORDER BY p.bloomed_at ASC',
+        args,
+      );
+      for (const r of colorRows) {
+        if (out[r.d] && out[r.d].bloomColor === undefined) out[r.d].bloomColor = r.color as BedColorKey | 'ideas';
+      }
       return out;
+    },
+    async month(year: number, month0: number): Promise<Record<string, DayActivity & { bloomColor?: BedColorKey | 'ideas' }>> {
+      const prefix = `${year}-${String(month0 + 1).padStart(2, '0')}-`;
+      const last = new Date(year, month0 + 1, 0).getDate();
+      return activity.range(`${prefix}01`, `${prefix}${String(last).padStart(2, '0')}`);
     },
     async week(startKey: string, endKey: string): Promise<{ blooms: number; waters: number }> {
       return {

@@ -20,14 +20,16 @@ jest.mock('expo-router', () => {
   };
 });
 
-const mockMonth = jest.fn();
 const mockWeek = jest.fn();
-const mockRepos = { activity: { month: (y: number, m: number) => mockMonth(y, m), week: () => mockWeek() } };
+const mockRange = jest.fn();
+const mockRepos = {
+  activity: { range: (a: string, b: string) => mockRange(a, b), week: () => mockWeek() },
+};
 jest.mock('@/store/AppProvider', () => ({ useRepos: () => mockRepos }));
 
 beforeEach(() => {
   mockTrack.mockReset();
-  mockMonth.mockReset().mockResolvedValue({});
+  mockRange.mockReset().mockResolvedValue({});
   mockWeek.mockReset().mockResolvedValue({ blooms: 0, waters: 0 });
   mockFocusCb = null;
 });
@@ -35,12 +37,14 @@ beforeEach(() => {
 describe('useActivity', () => {
   it('latest month wins when loads resolve out of order', async () => {
     const resolvers: Record<number, (v: unknown) => void> = {};
-    mockMonth.mockImplementation((_y: number, m: number) => new Promise((r) => (resolvers[m] = r)));
+    mockRange.mockImplementation((a: string) =>
+      /^2026-0[12]-01$/.test(a) ? new Promise((r) => (resolvers[Number(a.slice(5, 7)) - 1] = r)) : Promise.resolve({}),
+    );
     const { result, rerender } = await renderHook(({ m }: { m: number }) => useActivity(2026, m), { initialProps: { m: 0 } });
     await rerender({ m: 1 });
-    await act(async () => resolvers[1]({ '2026-02-03': { planted: 0, watered: 0, bloomed: 1 } }));
+    await act(async () => resolvers[1]({ '2026-02-03': { planted: 0, watered: 0, bloomed: 1, bloomColor: 'blue' } }));
     await act(async () => resolvers[0]({ '2026-01-05': { planted: 1, watered: 0, bloomed: 0 } }));
-    expect(result.current.states).toEqual({ '2026-02-03': 'bloomed' });
+    expect(result.current.cells).toEqual({ '2026-02-03': { state: 'bloomed', flower: '#7FA8E8' } });
   });
 });
 
@@ -56,12 +60,14 @@ describe('Garden screen', () => {
     expect(screen.getByText(`January ${now.getFullYear() + 1}`)).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Previous month'));
     expect(screen.getByText(`December ${now.getFullYear()}`)).toBeTruthy();
+    expect(screen.getByText('Garden')).toBeTruthy();
+    expect(screen.getByText('Every day you tended, growing.')).toBeTruthy();
     expect(mockTrack).toHaveBeenCalledTimes(1);
 
-    await waitFor(() => expect(mockMonth).toHaveBeenLastCalledWith(now.getFullYear(), 11));
-    const before = mockMonth.mock.calls.length;
+    await waitFor(() => expect(mockRange).toHaveBeenCalledWith(`${now.getFullYear()}-12-01`, `${now.getFullYear()}-12-31`));
+    const before = mockRange.mock.calls.length;
     await act(async () => mockFocusCb!());
     expect(mockTrack).toHaveBeenCalledTimes(2);
-    expect(mockMonth.mock.calls.length).toBe(before + 1);
+    expect(mockRange.mock.calls.length).toBe(before + 2);
   });
 });

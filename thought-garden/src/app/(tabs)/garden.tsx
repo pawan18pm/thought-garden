@@ -1,11 +1,10 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { format } from 'date-fns';
 import { dayKey } from '@/domain/dates';
 import { track } from '@/analytics/analytics';
 import { MonthCalendar } from '@/features/garden/MonthCalendar';
-import { WeekStrip } from '@/features/garden/WeekStrip';
+import { WeekCard } from '@/features/garden/WeekCard';
 import { useActivity } from '@/features/garden/useActivity';
 import { colors, fonts } from '@/ui/tokens';
 
@@ -13,7 +12,7 @@ export default function Garden() {
   const router = useRouter();
   const now = new Date();
   const [cursor, setCursor] = useState({ year: now.getFullYear(), month0: now.getMonth() });
-  const { states, week, reload } = useActivity(cursor.year, cursor.month0);
+  const { cells, weekCells, week, reload } = useActivity(cursor.year, cursor.month0);
 
   // Focus handling has stable deps: it must not re-run when the month changes.
   const reloadRef = useRef(reload);
@@ -33,24 +32,23 @@ export default function Garden() {
     setCursor({ year: d.getFullYear(), month0: d.getMonth() });
   };
 
+  const todayKey = dayKey(new Date());
+  const open = (key: string) => router.push({ pathname: '/garden/[date]', params: { date: key } });
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <WeekStrip blooms={week.blooms} waters={week.waters} />
-      <View style={styles.header}>
-        <Pressable onPress={() => shift(-1)} accessibilityRole="button" accessibilityLabel="Previous month" style={styles.arrow}>
-          <Text style={styles.arrowText}>‹</Text>
-        </Pressable>
-        <Text style={styles.title}>{format(new Date(cursor.year, cursor.month0, 1), 'MMMM yyyy')}</Text>
-        <Pressable onPress={() => shift(1)} accessibilityRole="button" accessibilityLabel="Next month" style={styles.arrow}>
-          <Text style={styles.arrowText}>›</Text>
-        </Pressable>
-      </View>
+      <Text style={styles.title} accessibilityRole="header">
+        Garden
+      </Text>
+      <Text style={styles.subtitle}>Every day you tended, growing.</Text>
+      <WeekCard blooms={week.blooms} waters={week.waters} cells={weekCells} todayKey={todayKey} onDayPress={open} />
       <MonthCalendar
         year={cursor.year}
         month0={cursor.month0}
-        states={states}
-        todayKey={dayKey(new Date())}
-        onDayPress={(key) => router.push({ pathname: '/garden/[date]', params: { date: key } })}
+        cells={cells}
+        todayKey={todayKey}
+        onDayPress={open}
+        onShift={shift}
       />
     </ScrollView>
   );
@@ -58,9 +56,7 @@ export default function Garden() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.paper },
-  content: { padding: 16, paddingTop: 64, paddingBottom: 120 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  title: { fontFamily: fonts.titleXBold, fontSize: 24, color: colors.ink },
-  arrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  arrowText: { fontFamily: fonts.titleBold, fontSize: 28, color: colors.ink },
+  content: { paddingHorizontal: 20, paddingTop: 56, paddingBottom: 120 },
+  title: { fontFamily: fonts.titleXBold, fontSize: 44, lineHeight: 46, letterSpacing: -0.9, color: colors.ink },
+  subtitle: { fontFamily: fonts.body, fontSize: 14, color: colors.muted, marginTop: 4, marginBottom: 14 },
 });
