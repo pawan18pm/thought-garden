@@ -111,3 +111,21 @@ describe('PlantDetailSheet', () => {
     expect(fns.edit).toHaveBeenCalledWith('p1', { bedId: 'bB' });
   });
 });
+
+describe('PlantDetailSheet bloom', () => {
+  it('stays open after the store removes the plant, until onClose', async () => {
+    jest.useFakeTimers();
+    const onClose = jest.fn();
+    const view = await render(<PlantDetailSheet plantId="p1" onClose={onClose} />);
+    fns.bloom.mockImplementation(async () => {
+      state.plants = [];
+      await view.rerender(<PlantDetailSheet plantId="p1" onClose={onClose} />);
+    });
+    await fireEvent.press(screen.getByLabelText('Bloom'));
+    expect(screen.getByText('Learn SQL')).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+    await jest.advanceTimersByTimeAsync(400);
+    expect(onClose).toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+});

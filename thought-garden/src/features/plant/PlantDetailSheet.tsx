@@ -69,12 +69,18 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
   };
 
   const onBloom = async () => {
-    await bloom(plant.id);
+    // Snapshot first: the store update inside bloom() removes the plant before the promise resolves.
+    setClosing(true);
+    try {
+      await bloom(plant.id);
+    } catch (e) {
+      setClosing(false);
+      throw e;
+    }
     if (reduced) {
       onClose();
       return;
     }
-    setClosing(true);
     scale.value = withSequence(withTiming(1.4, { duration: 160 }), withTiming(1, { duration: 140 }));
     timer.current = setTimeout(onClose, 320);
   };
