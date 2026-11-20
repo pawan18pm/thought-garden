@@ -14,3 +14,11 @@ describe('tokens', () => {
     expect(radius.card).toBe(22);
   });
 });
+
+import { flowerColors } from '../tokens';
+describe('flowerColors', () => {
+  it('has shades', () => {
+    expect(flowerColors.purple).toBe('#B49AF0');
+    expect(flowerColors.ideas).toBe('#F28AA8');
+  });
+});

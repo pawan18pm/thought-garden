@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Link } from 'expo-router';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGarden } from '@/store/AppProvider';
 import { orderBeds } from '@/domain/ordering';
-import { greetingFor } from '@/domain/greeting';
 import { BedCard } from '@/ui/BedCard';
 import { PlantItButton } from '@/ui/PlantItButton';
-import { colors, fonts } from '@/ui/tokens';
+import { colors } from '@/ui/tokens';
 import { PlantingSheet } from '@/features/plant/PlantingSheet';
 import { PlantDetailSheet } from '@/features/plant/PlantDetailSheet';
-import { BloomedTodayRow } from '@/features/plant/BloomedTodayRow';
+import { BloomedTodayCard } from '@/features/plant/BloomedTodayCard';
+import { PlantHeader } from '@/features/plant/PlantHeader';
 
 export default function PlantTab() {
   const insets = useSafeAreaInsets();
@@ -26,8 +25,6 @@ export default function PlantTab() {
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const ordered = orderBeds(beds);
-  const n = plants.length;
-  const greeting = `${greetingFor(new Date().getHours())} · ${n} ${n === 1 ? 'plant' : 'plants'} growing`;
 
   const openSheet = (bedId?: string) => {
     setSheetBedId(bedId);
@@ -36,21 +33,14 @@ export default function PlantTab() {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.header}>
-        <Link href="/settings" asChild>
-          <Pressable accessibilityRole="button" accessibilityLabel="Settings" style={styles.settings}>
-            <Text style={styles.settingsText}>⚙︎</Text>
-          </Pressable>
-        </Link>
-      </View>
       <FlatList
         data={ordered}
         keyExtractor={(b) => b.id}
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View>
-            <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.title}>Plant</Text>
+            <PlantHeader hour={new Date().getHours()} growing={plants.length} bloomedToday={bloomedToday.length} />
+            <BloomedTodayCard plants={bloomedToday} beds={beds} onUndo={(id) => void unbloom(id)} />
           </View>
         }
         renderItem={({ item }) => (
@@ -64,8 +54,7 @@ export default function PlantTab() {
             />
           </View>
         )}
-        ListFooterComponent={<BloomedTodayRow plants={bloomedToday} onUndo={(id) => void unbloom(id)} />}
-        extraData={plants}
+        extraData={[plants, bloomedToday]}
       />
       <View pointerEvents="box-none" style={[styles.fab, { bottom: Math.max(insets.bottom, 12) + 72 }]}>
         <PlantItButton onPress={() => openSheet(undefined)} />
@@ -78,12 +67,7 @@ export default function PlantTab() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.paper },
-  header: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16 },
-  settings: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  settingsText: { fontSize: 24, color: colors.ink },
-  list: { paddingHorizontal: 16, paddingBottom: 260 },
-  greeting: { fontFamily: fonts.body, fontSize: 14, color: colors.muted },
-  title: { fontFamily: fonts.titleXBold, fontSize: 40, color: colors.ink, marginBottom: 12 },
-  bed: { marginBottom: 10 },
+  list: { paddingHorizontal: 20, paddingBottom: 260 },
+  bed: { marginBottom: 16 },
   fab: { position: 'absolute', right: 8 },
 });

@@ -7,6 +7,7 @@ export const colors = {
   leaf: '#3F9142',
   leafLight: '#7CC47F',
   ideasBed: '#FFFFFF',
+  pink: '#F28AA8',
 } as const;
 
 export type BedColorKey = 'blue' | 'orange' | 'purple' | 'yellow' | 'green' | 'pink';
@@ -18,6 +19,16 @@ export const bedColors: Record<BedColorKey, string> = {
   yellow: '#FFF1B8',
   green: '#DDF2D1',
   pink: '#FFD9E4',
+};
+
+export const flowerColors: Record<BedColorKey | 'ideas', string> = {
+  blue: '#7FA8E8',
+  orange: '#F2A36B',
+  purple: '#B49AF0',
+  yellow: '#F2CF4A',
+  green: '#8ACB72',
+  pink: '#F28AA8',
+  ideas: '#F28AA8',
 };
 
 export const BED_COLOR_ORDER: BedColorKey[] = ['blue', 'orange', 'purple', 'yellow', 'green', 'pink'];
