@@ -60,6 +60,7 @@
   "private": true,
   "jest": {
     "preset": "jest-expo",
+    "testPathIgnorePatterns": ["/node_modules/", "/__tests__/nodeDb\\.ts$"],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
     }
