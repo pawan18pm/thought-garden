@@ -3,12 +3,15 @@ import { fireEvent, render, screen, within } from '@testing-library/react-native
 import { MonthCalendar } from '../MonthCalendar';
 import { WeekCard } from '../WeekCard';
 import DayDetail from '../../../app/garden/[date]';
-import { bedA, ideas, mkPlant } from '../../plant/__fixtures__/fixtures';
+import { bedA, bedB, ideas, mkPlant } from '../../plant/__fixtures__/fixtures';
 
 jest.mock('react-native-reanimated', () => {
   const { View } = require('react-native');
   return { __esModule: true, default: { View } };
 });
+
+const mockArt = jest.fn();
+jest.mock('@/ui/PlantArt', () => ({ PlantArt: (p: unknown) => { mockArt(p); return null; } }));
 
 const mockParams: { date?: string } = {};
 const mockBack = jest.fn();
@@ -104,6 +107,24 @@ describe('Day detail', () => {
     expect(screen.queryByText('Planted')).toBeNull();
     const titles = screen.getAllByTestId(/^section-/).map((n) => n.props.testID);
     expect(titles).toEqual(['section-bloomed', 'section-watered']);
+  });
+  it('header tile flower uses the earliest bloom of the day', async () => {
+    mockState.beds = [bedA, bedB, ideas];
+    mockParams.date = '2026-11-18';
+    mockArt.mockClear();
+    mockDetail.mockResolvedValue({
+      // detail() orders by created_at DESC: the later-created plant (orange bed) bloomed first.
+      bloomed: [
+        mkPlant({ id: 'x', bedId: 'bA', bloomedAt: '2026-11-18T15:00:00+05:30' }),
+        mkPlant({ id: 'y', bedId: 'bB', text: 'Early', bloomedAt: '2026-11-18T09:00:00+05:30' }),
+      ],
+      watered: [],
+      planted: [],
+    });
+    await render(<DayDetail />);
+    await screen.findByText('Early');
+    expect(mockArt).toHaveBeenCalledWith(expect.objectContaining({ stage: 'bloom', size: 52, flowerColor: '#F2A36B' }));
+    mockState.beds = [bedA, ideas];
   });
   it('gentle empty message', async () => {
     mockParams.date = '2026-11-18';

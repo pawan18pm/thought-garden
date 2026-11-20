@@ -101,7 +101,11 @@ export default function DayDetail() {
   const loaded = !parsed || detail !== null;
   const visible = parsed && detail ? SECTIONS.filter((s) => detail[s.key].length > 0) : [];
   const tileStage = detail && detail.bloomed.length ? 'bloom' : detail && detail.watered.length ? 'watered' : detail && detail.planted.length ? 'seed' : null;
-  const firstBloomBed = detail?.bloomed[0] ? beds.find((b) => b.id === detail.bloomed[0].bedId) : undefined;
+  const earliestBloom = detail?.bloomed.reduce<Plant | undefined>(
+    (min, p) => (!min || (p.bloomedAt ?? '') < (min.bloomedAt ?? '') ? p : min),
+    undefined,
+  );
+  const firstBloomBed = earliestBloom ? beds.find((b) => b.id === earliestBloom.bedId) : undefined;
   const tileFlower = flowerColors[(firstBloomBed?.color ?? 'pink') as keyof typeof flowerColors];
 
   return (
