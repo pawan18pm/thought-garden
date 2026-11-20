@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { format } from 'date-fns';
@@ -15,11 +15,17 @@ export default function Garden() {
   const [cursor, setCursor] = useState({ year: now.getFullYear(), month0: now.getMonth() });
   const { states, week, reload } = useActivity(cursor.year, cursor.month0);
 
+  // Focus handling has stable deps: it must not re-run when the month changes.
+  const reloadRef = useRef(reload);
+  reloadRef.current = reload;
+  const firstFocus = useRef(true);
   useFocusEffect(
     useCallback(() => {
       track('garden_viewed', {});
-      void reload();
-    }, [reload]),
+      // The first load comes from useActivity's mount effect; later focuses refresh.
+      if (firstFocus.current) firstFocus.current = false;
+      else void reloadRef.current();
+    }, []),
   );
 
   const shift = (delta: number) => {
