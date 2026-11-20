@@ -1,15 +1,5 @@
-import { Text, View, StyleSheet } from 'react-native';
-import { colors, fonts } from '@/ui/tokens';
+import { Redirect } from 'expo-router';
 
 export default function Index() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Mindbed</Text>
-    </View>
-  );
+  return <Redirect href="/(tabs)/plant" />;
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
-  title: { fontFamily: fonts.titleXBold, fontSize: 44, color: colors.ink },
-});

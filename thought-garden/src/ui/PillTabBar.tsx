@@ -4,7 +4,7 @@ import type { BottomTabBarProps } from 'expo-router/build/layouts/Tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { border, colors, fonts } from '@/ui/tokens';
 
-const LABELS: Record<string, string> = { index: '🌰 Plant', garden: '🌳 Garden' };
+const LABELS: Record<string, string> = { plant: '🌰 Plant', garden: '🌳 Garden' };
 
 export function PillTabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
