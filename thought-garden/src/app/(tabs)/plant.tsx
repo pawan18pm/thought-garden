@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -11,6 +11,8 @@ import { PlantDetailSheet } from '@/features/plant/PlantDetailSheet';
 import { QuickPlantBox } from '@/features/plant/QuickPlantBox';
 import { BedSection } from '@/features/plant/BedSection';
 import { RemoveBedPrompt } from '@/features/plant/RemoveBedPrompt';
+import { FLASH_MS } from '@/features/plant/ThoughtRow';
+import { useReducedMotion } from '@/ui/useReducedMotion';
 
 const MAX_USER_BEDS = 6;
 
@@ -34,6 +36,24 @@ export default function PlantTab() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [freshId, setFreshId] = useState<string | null>(null);
+  const reduced = useReducedMotion();
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+    },
+    [],
+  );
+  /** Briefly flash a row after plant / water / bloom; with Reduce Motion there is no fill at all. */
+  const flashRow = (id: string) => {
+    if (reduced) return;
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    setFreshId(id);
+    flashTimer.current = setTimeout(() => {
+      flashTimer.current = null;
+      setFreshId(null);
+    }, FLASH_MS + 100);
+  };
   const [notice, setNotice] = useState<string | null>(null);
   // Unsaved bed names, keyed by bed id. The ref mirrors state so a blur and a
   // Done press in the same tick can't both save (or lose) the same draft.
@@ -50,7 +70,7 @@ export default function PlantTab() {
 
   const onPlant = async (text: string, bedId: string) => {
     const created = await plant(text, bedId, null, 'fab');
-    if (created) setFreshId(created.id);
+    if (created) flashRow(created.id);
   };
 
   const changeName = (id: string, name: string) => setDraftMap({ ...draftsRef.current, [id]: name });
@@ -142,8 +162,14 @@ export default function PlantTab() {
                   setTargetId(bed.id);
                   setNotice(`Planting into ${bed.name}`);
                 }}
-                onWater={(id) => void water(id)}
-                onBloom={(id) => void bloom(id)}
+                onWater={(id) => {
+                  flashRow(id);
+                  void water(id);
+                }}
+                onBloom={(id) => {
+                  flashRow(id);
+                  void bloom(id);
+                }}
                 onPressPlant={setDetailId}
                 highlightId={freshId}
                 footer={

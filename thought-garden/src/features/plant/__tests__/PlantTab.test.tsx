@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import PlantTab from '../../../app/(tabs)/plant';
 import { bedA, bedB, ideas, mkPlant } from '../__fixtures__/fixtures';
 import type { Plant } from '@/domain/types';
@@ -199,5 +199,22 @@ describe('Plant tab', () => {
     await fireEvent.press(screen.getByText('Edit beds'));
     await fireEvent.press(screen.getByText('+ Add a bed'));
     expect(fns.addBed).toHaveBeenCalledWith('New bed', 'purple');
+  });
+
+  it('watering flashes the row briefly, then the tint clears', async () => {
+    jest.useFakeTimers();
+    try {
+      await render(<PlantTab />);
+      expect(screen.queryByTestId('row-flash')).toBeNull();
+      await fireEvent.press(screen.getByLabelText('Water Learn SQL'));
+      expect(fns.water).toHaveBeenCalled();
+      expect(screen.getByTestId('row-flash')).toBeTruthy();
+      await act(async () => {
+        jest.advanceTimersByTime(1400);
+      });
+      expect(screen.queryByTestId('row-flash')).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

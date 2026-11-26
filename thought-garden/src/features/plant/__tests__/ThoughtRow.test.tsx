@@ -3,9 +3,13 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { ThoughtRow } from '../ThoughtRow';
 import { bedA, mkPlant } from '../__fixtures__/fixtures';
 
-const setup = async (over = {}, handlers: Partial<Record<'onWater' | 'onBloom' | 'onPress', () => void>> = {}) => {
+const setup = async (
+  over = {},
+  handlers: Partial<Record<'onWater' | 'onBloom' | 'onPress', () => void>> = {},
+  highlight = false,
+) => {
   const h = { onWater: jest.fn(), onBloom: jest.fn(), onPress: jest.fn(), ...handlers };
-  await render(<ThoughtRow plant={mkPlant(over)} bed={bedA} {...h} />);
+  await render(<ThoughtRow plant={mkPlant(over)} bed={bedA} highlight={highlight} {...h} />);
   return h;
 };
 
@@ -48,5 +52,16 @@ describe('ThoughtRow', () => {
   it('long title is one line', async () => {
     await setup({ text: 'x'.repeat(200) });
     expect(screen.getByText('x'.repeat(200)).props.numberOfLines).toBe(1);
+  });
+
+  it('no tint fill unless highlighted', async () => {
+    await setup();
+    expect(screen.queryByTestId('row-flash')).toBeNull();
+  });
+
+  it('highlight is a fading overlay, not a fill on the row', async () => {
+    await setup({}, {}, true);
+    const flash = screen.getByTestId('row-flash');
+    expect(flash.props.pointerEvents).toBe('none');
   });
 });

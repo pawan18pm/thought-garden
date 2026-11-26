@@ -1,9 +1,10 @@
-import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import type { Bed, Plant } from '@/domain/types';
 import { canBloomNow, stageOf } from '@/domain/stages';
 import { PlantArt } from '@/ui/PlantArt';
+import { PressableScale } from '@/ui/PressableScale';
 import { bedColors, colors, flowerColors, fonts } from '@/ui/tokens';
 import { WaterDrops } from './WaterDrops';
 
@@ -13,8 +14,11 @@ interface Props {
   onWater: () => void;
   onBloom: () => void;
   onPress: () => void;
+  /** Just planted / watered / bloomed: a soft tint flashes and fades out. The screen clears it. */
   highlight?: boolean;
 }
+
+export const FLASH_MS = 1200;
 
 const btn = {
   height: 44,
@@ -30,6 +34,25 @@ export function ThoughtRow({ plant, bed, onWater, onBloom, onPress, highlight }:
   const bloomed = !!plant.bloomedAt;
   const title = plant.text;
   const bloomColor = flowerColors[bed.color] ?? flowerColors.ideas;
+  const tint = bedColors[bed.color as keyof typeof bedColors] ?? '#FFF3F6';
+  const flash = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!highlight) return;
+    flash.setValue(1);
+    const anim = Animated.timing(flash, {
+      toValue: 0,
+      duration: FLASH_MS,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: true,
+    });
+    anim.start();
+    return () => {
+      anim.stop();
+      flash.setValue(0);
+    };
+  }, [highlight, flash]);
+
   return (
     <View
       style={{
@@ -42,9 +65,15 @@ export function ThoughtRow({ plant, bed, onWater, onBloom, onPress, highlight }:
         borderBottomWidth: 1.5,
         borderBottomColor: colors.line,
         borderRadius: 12,
-        backgroundColor: highlight ? bedColors[bed.color as keyof typeof bedColors] ?? colors.paper : 'transparent',
       }}
     >
+      {highlight ? (
+        <Animated.View
+          testID="row-flash"
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { borderRadius: 12, backgroundColor: tint, opacity: flash }]}
+        />
+      ) : null}
       <PlantArt stage={stageOf(plant)} size={44} flowerColor={bloomColor} />
       <Pressable onPress={onPress} style={{ flex: 1, minWidth: 0 }}>
         <Text
@@ -73,9 +102,10 @@ export function ThoughtRow({ plant, bed, onWater, onBloom, onPress, highlight }:
       </Pressable>
       {!bloomed && (
         <>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={`Water ${title}`}
+            pressScale={0.94}
             onPress={onWater}
             style={[btn, { flexDirection: 'row', gap: 5, paddingHorizontal: 12, backgroundColor: bedColors.blue }]}
           >
@@ -88,11 +118,12 @@ export function ThoughtRow({ plant, bed, onWater, onBloom, onPress, highlight }:
               />
             </Svg>
             <Text style={{ fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink }}>Water</Text>
-          </Pressable>
+          </PressableScale>
           {canBloomNow(plant) && (
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={`Bloom ${title} now`}
+              pressScale={0.92}
               onPress={onBloom}
               style={[btn, { width: 44, backgroundColor: bedColors.pink }]}
             >
@@ -102,7 +133,7 @@ export function ThoughtRow({ plant, bed, onWater, onBloom, onPress, highlight }:
                 ))}
                 <Circle cx={12} cy={12} r={3} fill="#FFD84D" stroke={colors.ink} strokeWidth={1.6} />
               </Svg>
-            </Pressable>
+            </PressableScale>
           )}
         </>
       )}
