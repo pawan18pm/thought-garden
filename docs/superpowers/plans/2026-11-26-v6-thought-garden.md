@@ -8,7 +8,7 @@
 
 **Tech Stack:** Expo SDK 58, Expo Router, React Native, react-native-svg, expo-sqlite, zustand, jest-expo + @testing-library/react-native, PostHog.
 
-**Spec:** `docs/superpowers/specs/2026-11-26-v6-thought-garden-design.md`. Visual source: board artboard **V6App** ((design board, private)). Implementers must open it and match layout, sizes and copy.
+**Spec:** `docs/superpowers/specs/2026-11-26-v6-thought-garden-design.md`. Visual source: board artboard **V6App** (design board, private). Implementers must open it and match layout, sizes and copy.
 
 ## Global Constraints
 - App name everywhere a user sees it: **Thought Garden** (not Mindbed). Keep `slug`/bundle ids unchanged.

@@ -2,7 +2,7 @@
 
 > Date: 2026-11-19 · Status: draft for approval
 > Product source of truth: [SRD](../../srd.md) · [Problem Framing](../../problem-framing.md)
-> Visual reference: [style board]((design board, private)): "Design system" artboard (tokens, 4 plant stages as SVG, stake, pill tab bar, PLANT IT button, bed) and "Plant tab" artboard (390×844 screen). Treat its SVG paths and measurements as the spec for those components.
+> Visual reference: style board (design board, private): "Design system" artboard (tokens, 4 plant stages as SVG, stake, pill tab bar, PLANT IT button, bed) and "Plant tab" artboard (390×844 screen). Treat its SVG paths and measurements as the spec for those components.
 
 This document covers **how** to build the MVP defined in SRD §5.3 and §9 to §10. Product decisions live in the SRD and aren't repeated here unless the build needs a precise rule.
 

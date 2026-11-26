@@ -1,6 +1,6 @@
 # Thought Garden v6 — design (approved 2026-11-26)
 
-**Visual source of truth:** the connected prototype `V6App` on the board "Thought Garden Style Board v3" ((design board, private), artboard V6App, 390×844). Match its layout, copy and behaviour. Sample names in it are illustrative.
+**Visual source of truth:** the connected prototype `V6App` on the board "Thought Garden Style Board v3" (design board, private; artboard V6App, 390×844). Match its layout, copy and behaviour. Sample names in it are illustrative.
 
 ## Why
 On-device and board reviews (2026-11-26) showed the app should be minimal and timespent-like: white space, big bold titles, one card per bed with a coloured offset shadow, a Duolingo-paced onboarding, and a Plant tab where planting is instant. The user's own beds must flow from onboarding into every screen.

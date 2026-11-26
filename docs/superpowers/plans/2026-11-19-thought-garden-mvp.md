@@ -8,7 +8,7 @@
 
 **Tech Stack:** Expo SDK (latest stable), TypeScript, expo-router, expo-sqlite, zustand, react-native-svg, react-native-reanimated, react-native-gesture-handler, react-native-draggable-flatlist, expo-notifications, expo-crypto, expo-sharing, expo-file-system, @expo-google-fonts/bricolage-grotesque, @expo-google-fonts/inter, date-fns, posthog-react-native, jest-expo, @testing-library/react-native.
 
-**Spec:** `docs/superpowers/specs/2026-11-19-thought-garden-design.md` (product: `docs/srd.md`; visuals: style board (design board, private))
+**Spec:** `docs/superpowers/specs/2026-11-19-thought-garden-design.md` (product: `docs/srd.md`; visuals: style board, private design board)
 
 ## Global Constraints
 

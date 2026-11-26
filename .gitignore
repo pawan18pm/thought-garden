@@ -3,3 +3,11 @@ thought-garden/.expo/
 thought-garden/.env
 *.log
 .superpowers/
+timespent iOS Activities (1)/
+.vscode/
+.env
+.env.*
+!.env.example
+.claude/
+node_modules/
+.DS_Store
