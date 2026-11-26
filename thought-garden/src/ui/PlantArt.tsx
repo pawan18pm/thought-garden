@@ -11,9 +11,11 @@ interface Props {
   stage: Stage;
   size?: number;
   flowerColor?: string;
+  /** false draws the plant bare, without its soil mound (for tiles and chips that have their own ground). */
+  soil?: boolean;
 }
 
-export function PlantArt({ stage, size = 48, flowerColor = DEFAULT_FLOWER }: Props) {
+export function PlantArt({ stage, size = 48, flowerColor = DEFAULT_FLOWER, soil = true }: Props) {
   return (
     <Svg
       width={size}
@@ -22,7 +24,7 @@ export function PlantArt({ stage, size = 48, flowerColor = DEFAULT_FLOWER }: Pro
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
-      <Ellipse cx={36} cy={64} rx={28} ry={6} fill={colors.soil} />
+      {soil && <Ellipse cx={36} cy={64} rx={28} ry={6} fill={colors.soil} />}
       {stage === 'seed' && <Ellipse cx={36} cy={58} rx={9} ry={6} fill={colors.seed} {...sw} />}
       {stage === 'watered' && (
         <>

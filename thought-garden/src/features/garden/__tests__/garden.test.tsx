@@ -52,6 +52,7 @@ describe('MonthCalendar', () => {
     const tileArt = stages.filter((p) => p.size === 30);
     expect(tileArt.map((p) => p.stage)).toEqual(['seed', 'watered', 'growing', 'bloom']);
     expect(tileArt[3].flowerColor).toBe('#F2A36B');
+    for (const [p] of mockArt.mock.calls) expect(p).toMatchObject({ soil: false });
     expect(screen.getByTestId('sparkle-2026-11-05')).toBeTruthy();
     expect(screen.queryByTestId('sparkle-2026-11-04')).toBeNull();
     expect(screen.getByLabelText('November 5, bloomed')).toBeTruthy();
@@ -70,7 +71,7 @@ describe('MonthCard', () => {
 
   it('chips, title and arrows', async () => {
     const onShift = jest.fn();
-    await render(<MonthCard {...cal} onShift={onShift} summary={{ bloomed: 2, watered: 3, planted: 4 }} daysTended={5} />);
+    await render(<MonthCard {...cal} period="current" onShift={onShift} summary={{ bloomed: 2, watered: 3, planted: 4 }} daysTended={5} />);
     expect(screen.getByText('November 2026')).toBeTruthy();
     expect(screen.getByText('2 bloomed')).toBeTruthy();
     expect(screen.getByText('3 watered')).toBeTruthy();
@@ -86,6 +87,18 @@ describe('MonthCard', () => {
     expect(monthLine({ bloomed: 1, watered: 0, planted: 0 }, 1)).toBe('Your garden is blooming. 1 day tended this month.');
     expect(monthLine({ bloomed: 0, watered: 1, planted: 2 }, 2)).toBe('Nice start. 2 days tended this month.');
     expect(monthLine({ bloomed: 0, watered: 0, planted: 0 }, 0)).toBe('Your garden starts today. Plant something.');
+    expect(monthLine({ bloomed: 0, watered: 0, planted: 0 }, 0, 'current')).toBe('Your garden starts today. Plant something.');
+    expect(monthLine({ bloomed: 0, watered: 0, planted: 0 }, 0, 'past')).toBe('A quiet month.');
+    expect(monthLine({ bloomed: 0, watered: 0, planted: 0 }, 0, 'future')).toBe('Still to come.');
+    expect(monthLine({ bloomed: 0, watered: 1, planted: 0 }, 1, 'past')).toBe('Nice start. 1 day tended this month.');
+  });
+
+  it('chip and legend art is drawn without its own soil mound', async () => {
+    mockArt.mockClear();
+    await render(<MonthCard {...cal} period="past" onShift={() => {}} summary={{ bloomed: 0, watered: 0, planted: 0 }} daysTended={0} />);
+    expect(screen.getByText('A quiet month.')).toBeTruthy();
+    expect(mockArt.mock.calls.length).toBeGreaterThan(0);
+    for (const [p] of mockArt.mock.calls) expect(p).toMatchObject({ soil: false });
   });
 });
 
@@ -132,7 +145,8 @@ describe('DayDropdown', () => {
     expect(screen.getAllByText('Interview')).toHaveLength(2);
     const art = mockArt.mock.calls.map(([p]) => p as { stage: string; size: number; flowerColor?: string });
     expect(art.map((p) => p.stage)).toEqual(['bloom', 'watered', 'growing']);
-    expect(art[0]).toMatchObject({ size: 32, flowerColor: '#F2A36B' });
+    expect(art[0]).toMatchObject({ size: 32, flowerColor: '#F2A36B', soil: false });
+    for (const p of art) expect(p).toMatchObject({ soil: false });
     await fireEvent.press(screen.getByLabelText('Close day'));
     expect(onClose).toHaveBeenCalled();
   });
@@ -148,7 +162,22 @@ describe('DayDropdown', () => {
       />,
     );
     expect(screen.getByText('Today · Thursday, 26 November')).toBeTruthy();
-    expect(screen.getByText("Nothing happened this day. That's okay.")).toBeTruthy();
+    expect(screen.getByText('Nothing yet today. Plant or water something.')).toBeTruthy();
+    expect(screen.queryByText("Nothing happened this day. That's okay.")).toBeNull();
     expect(screen.queryByTestId('count-planted')).toBeNull();
+  });
+
+  it('quiet past day text', async () => {
+    await render(
+      <DayDropdown
+        dateKey="2026-11-20"
+        todayKey="2026-11-26"
+        groups={{ bloomed: [], watered: [], planted: [] }}
+        beds={beds}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText("Nothing happened this day. That's okay.")).toBeTruthy();
+    expect(screen.queryByText('Nothing yet today. Plant or water something.')).toBeNull();
   });
 });

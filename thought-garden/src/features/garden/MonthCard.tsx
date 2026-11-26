@@ -6,21 +6,30 @@ import { border, colors, fonts } from '@/ui/tokens';
 import { MonthCalendar, type MonthCalendarProps } from './MonthCalendar';
 import type { MonthSummary } from './useActivity';
 
+export type MonthPeriod = 'past' | 'current' | 'future';
+
 interface Props extends MonthCalendarProps {
   summary: MonthSummary;
+  /** Where the shown month sits relative to today's month. */
+  period: MonthPeriod;
   daysTended: number;
   onShift: (delta: number) => void;
   /** Rendered under the legend, inside the card (the day dropdown). */
   children?: React.ReactNode;
 }
 
-export function monthLine(summary: MonthSummary, daysTended: number): string {
-  const lead =
-    summary.bloomed > 0 ? 'Your garden is blooming.' : daysTended > 0 ? 'Nice start.' : 'Your garden starts today. Plant something.';
+const EMPTY_LINE: Record<MonthPeriod, string> = {
+  past: 'A quiet month.',
+  current: 'Your garden starts today. Plant something.',
+  future: 'Still to come.',
+};
+
+export function monthLine(summary: MonthSummary, daysTended: number, period: MonthPeriod = 'current'): string {
+  const lead = summary.bloomed > 0 ? 'Your garden is blooming.' : daysTended > 0 ? 'Nice start.' : EMPTY_LINE[period];
   return daysTended > 0 ? `${lead} ${daysTended} ${daysTended === 1 ? 'day' : 'days'} tended this month.` : lead;
 }
 
-export function MonthCard({ summary, daysTended, onShift, children, ...calendar }: Props) {
+export function MonthCard({ summary, daysTended, period, onShift, children, ...calendar }: Props) {
   const title = format(new Date(calendar.year, calendar.month0, 1), 'MMMM yyyy');
   return (
     <View style={styles.wrap} accessibilityLabel={title}>
@@ -39,19 +48,19 @@ export function MonthCard({ summary, daysTended, onShift, children, ...calendar 
         </View>
         <View style={styles.chips}>
           <View style={[styles.chip, { backgroundColor: '#FFEFF4' }]}>
-            <PlantArt stage="bloom" size={18} />
+            <PlantArt stage="bloom" size={18} soil={false} />
             <Text style={styles.chipText}>{`${summary.bloomed} bloomed`}</Text>
           </View>
           <View style={[styles.chip, { backgroundColor: '#EEF4FF' }]}>
-            <PlantArt stage="watered" size={18} />
+            <PlantArt stage="watered" size={18} soil={false} />
             <Text style={styles.chipText}>{`${summary.watered} watered`}</Text>
           </View>
           <View style={[styles.chip, { backgroundColor: '#F3F9EE' }]}>
-            <PlantArt stage="seed" size={18} />
+            <PlantArt stage="seed" size={18} soil={false} />
             <Text style={styles.chipText}>{`${summary.planted} planted`}</Text>
           </View>
         </View>
-        <Text style={styles.line}>{monthLine(summary, daysTended)}</Text>
+        <Text style={styles.line}>{monthLine(summary, daysTended, period)}</Text>
         <MonthCalendar {...calendar} />
         {children}
       </View>

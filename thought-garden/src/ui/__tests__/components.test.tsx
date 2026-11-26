@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react-native';
 import { PlantStake } from '@/ui/PlantStake';
 import { BedCard, plantLabel } from '@/ui/BedCard';
 import { PlantItButton } from '@/ui/PlantItButton';
+import { PlantArt } from '@/ui/PlantArt';
 import type { Bed, Plant } from '@/domain/types';
 
 jest.mock('react-native-reanimated', () => {
@@ -92,5 +93,20 @@ describe('plantLabel', () => {
     expect(plantLabel({ ...mk(1), text: 'Learn SQL', priority: 3, waterCount: 3 })).toBe('High priority: Learn SQL, growing');
     expect(plantLabel({ ...mk(1), text: 'Mock', priority: 2 })).toBe('Medium priority: Mock, seed');
     expect(plantLabel({ ...mk(1), text: 'Case', priority: null, bloomedAt: '2026-01-02T00:00:00Z' })).toBe('Case, bloom');
+  });
+});
+
+describe('PlantArt soil option', () => {
+  it('draws the soil mound by default and omits it when soil={false}', async () => {
+    // Seed art = soil mound ellipse + seed ellipse; bare = seed ellipse only.
+    const ellipses = (node: unknown): number => {
+      if (!node || typeof node !== 'object') return 0;
+      const n = node as { type?: string; children?: unknown[] | null };
+      return (n.type === 'RNSVGEllipse' ? 1 : 0) + (n.children ?? []).reduce<number>((t, c) => t + ellipses(c), 0);
+    };
+    const withSoil = await render(<PlantArt stage="seed" />);
+    expect(ellipses(withSoil.toJSON())).toBe(2);
+    const bare = await render(<PlantArt stage="seed" soil={false} />);
+    expect(ellipses(bare.toJSON())).toBe(1);
   });
 });

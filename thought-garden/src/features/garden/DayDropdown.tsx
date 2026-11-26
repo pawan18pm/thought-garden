@@ -42,7 +42,7 @@ function Item({ plant, bed }: { plant: Plant; bed: Bed | undefined }) {
   const tint = color === 'ideas' ? colors.ideasBed : bedColors[color];
   return (
     <View style={styles.item}>
-      <PlantArt stage={stageOf(plant)} size={32} flowerColor={flowerColors[color]} />
+      <PlantArt stage={stageOf(plant)} size={32} flowerColor={flowerColors[color]} soil={false} />
       <Text style={styles.itemTitle} numberOfLines={2}>
         {plant.text}
       </Text>
@@ -71,7 +71,9 @@ export function DayDropdown({ dateKey, todayKey = dayKey(new Date()), groups, be
           </Pressable>
         </View>
         {visible.length === 0 ? (
-          <Text style={styles.quiet}>Nothing happened this day. That's okay.</Text>
+          <Text style={styles.quiet}>
+            {dateKey === todayKey ? 'Nothing yet today. Plant or water something.' : "Nothing happened this day. That's okay."}
+          </Text>
         ) : (
           <>
             <View style={styles.counts}>

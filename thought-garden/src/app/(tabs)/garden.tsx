@@ -7,7 +7,7 @@ import { track } from '@/analytics/analytics';
 import { useGarden } from '@/store/AppProvider';
 import { LogoRow } from '@/ui/Logo';
 import { DayDropdown } from '@/features/garden/DayDropdown';
-import { MonthCard } from '@/features/garden/MonthCard';
+import { MonthCard, type MonthPeriod } from '@/features/garden/MonthCard';
 import { NextUpCard } from '@/features/garden/NextUpCard';
 import { monthBounds, useActivity, useDayDetail } from '@/features/garden/useActivity';
 import { colors, fonts } from '@/ui/tokens';
@@ -59,7 +59,12 @@ export default function Garden() {
   const ready = plants.filter((p) => !p.bloomedAt && p.waterCount >= 2).length;
 
   const { startKey, endKey } = monthBounds(cursor.year, cursor.month0);
-  const openKey = selected !== null && selected >= startKey && selected <= endKey ? selected : null;
+  const inMonth = (k: string) => k >= startKey && k <= endKey;
+  // Shows the last loaded day until the newly tapped one arrives (no collapse between days).
+  const shown = selected !== null && inMonth(selected) && day.loaded && inMonth(day.loaded.key) ? day.loaded : null;
+  const nowMonth = now.getFullYear() * 12 + now.getMonth();
+  const shownMonth = cursor.year * 12 + cursor.month0;
+  const period: MonthPeriod = shownMonth < nowMonth ? 'past' : shownMonth > nowMonth ? 'future' : 'current';
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
@@ -79,12 +84,13 @@ export default function Garden() {
           onShift={shift}
           summary={summary}
           daysTended={daysTended}
+          period={period}
         >
-          {openKey && day.groups && (
+          {shown && (
             <DayDropdown
-              dateKey={openKey}
+              dateKey={shown.key}
               todayKey={todayKey}
-              groups={day.groups}
+              groups={shown.groups}
               beds={beds}
               onClose={() => setSelected(null)}
             />

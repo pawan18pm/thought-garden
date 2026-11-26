@@ -84,15 +84,15 @@ export function MonthCalendar({ year, month0, cells, todayKey, selectedKey, onDa
           <Text style={styles.legendText}>Rest day</Text>
         </View>
         <View style={styles.legendItem}>
-          <PlantArt stage="seed" size={18} />
+          <PlantArt stage="seed" size={18} soil={false} />
           <Text style={styles.legendText}>Planted</Text>
         </View>
         <View style={styles.legendItem}>
-          <PlantArt stage="watered" size={18} />
+          <PlantArt stage="watered" size={18} soil={false} />
           <Text style={styles.legendText}>Watered</Text>
         </View>
         <View style={styles.legendItem}>
-          <PlantArt stage="bloom" size={18} />
+          <PlantArt stage="bloom" size={18} soil={false} />
           <Text style={styles.legendText}>Bloomed</Text>
         </View>
       </View>

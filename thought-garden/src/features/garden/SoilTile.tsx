@@ -65,9 +65,9 @@ export function SoilTile({ dateKey, cell, dayNum, isToday, future, selected }: P
         />
         {active && (
           <View testID={`day-${dateKey}-${state}`} style={styles.art}>
-            {state === 'planted' && <PlantArt stage="seed" size={30} />}
-            {state === 'watered' && <PlantArt stage={cell?.growing ? 'growing' : 'watered'} size={30} />}
-            {bloomed && <PlantArt stage="bloom" size={30} flowerColor={cell?.flower} />}
+            {state === 'planted' && <PlantArt stage="seed" size={30} soil={false} />}
+            {state === 'watered' && <PlantArt stage={cell?.growing ? 'growing' : 'watered'} size={30} soil={false} />}
+            {bloomed && <PlantArt stage="bloom" size={30} flowerColor={cell?.flower} soil={false} />}
           </View>
         )}
         {bloomed && <Sparkle testID={`sparkle-${dateKey}`} />}

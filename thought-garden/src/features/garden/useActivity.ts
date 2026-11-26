@@ -75,7 +75,11 @@ export function useActivity(year: number, month0: number) {
   return { cells, summary, daysTended, reload };
 }
 
-/** One day's thoughts, each in its furthest group. `groups` is null until that day has loaded. */
+/**
+ * One day's thoughts, each in its furthest group. While switching between days the
+ * previously loaded day stays in `loaded` until the new one arrives, so the dropdown
+ * doesn't collapse and re-open. Closing (key = null) clears it.
+ */
 export function useDayDetail(key: string | null) {
   const { activity } = useRepos();
   const [loaded, setLoaded] = useState<{ key: string; groups: DayPlants } | null>(null);
@@ -86,7 +90,10 @@ export function useDayDetail(key: string | null) {
   const reload = useCallback(async () => {
     const id = ++reqId.current;
     const k = latest.current;
-    if (!k) return;
+    if (!k) {
+      setLoaded(null);
+      return;
+    }
     try {
       const d = await activity.detail(k);
       if (id !== reqId.current) return;
@@ -100,5 +107,5 @@ export function useDayDetail(key: string | null) {
     void reload();
   }, [key, reload]);
 
-  return { groups: loaded && loaded.key === key ? loaded.groups : null, reload };
+  return { loaded: key ? loaded : null, reload };
 }

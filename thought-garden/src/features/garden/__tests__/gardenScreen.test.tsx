@@ -137,7 +137,7 @@ describe('Garden screen', () => {
     mockRange.mockResolvedValue({ '2026-11-18': { planted: 1, watered: 2, bloomed: 1, bloomColor: 'orange' } });
     await render(<Garden />);
     expect(await screen.findByText('Today · Thursday, 26 November')).toBeTruthy();
-    expect(screen.getByText("Nothing happened this day. That's okay.")).toBeTruthy();
+    expect(screen.getByText('Nothing yet today. Plant or water something.')).toBeTruthy();
 
     await fireEvent.press(screen.getByLabelText('November 18, bloomed'));
     expect(await screen.findByText('Wednesday, 18 November')).toBeTruthy();
@@ -153,6 +153,44 @@ describe('Garden screen', () => {
 
     await fireEvent.press(screen.getByLabelText('November 18, bloomed'));
     expect(screen.queryByText('Wednesday, 18 November')).toBeNull();
+  });
+
+  it('switching days keeps the previous day showing until the new one loads', async () => {
+    const a = mkPlant({ id: 'a', text: 'Bloomy', bloomedAt: '2026-11-18T10:00:00Z', waterCount: 3 });
+    let resolve10: (v: unknown) => void = () => {};
+    mockDetail.mockImplementation((k: string) => {
+      if (k === '2026-11-18') return Promise.resolve({ bloomed: [a], watered: [], planted: [] });
+      if (k === '2026-11-10') return new Promise((r) => (resolve10 = r));
+      return Promise.resolve(empty);
+    });
+    await render(<Garden />);
+    await screen.findByText('Today · Thursday, 26 November');
+    await fireEvent.press(screen.getByLabelText('November 18'));
+    expect(await screen.findByText('Wednesday, 18 November')).toBeTruthy();
+
+    await fireEvent.press(screen.getByLabelText('November 10'));
+    // Still loading Nov 10: Nov 18 stays on screen instead of the dropdown collapsing.
+    expect(screen.getByText('Wednesday, 18 November')).toBeTruthy();
+    expect(screen.getByText('Bloomy')).toBeTruthy();
+
+    await act(async () => resolve10({ bloomed: [], watered: [], planted: [] }));
+    expect(screen.getByText('Tuesday, 10 November')).toBeTruthy();
+    expect(screen.queryByText('Wednesday, 18 November')).toBeNull();
+    expect(screen.getByText("Nothing happened this day. That's okay.")).toBeTruthy();
+
+    // Closing then reopening a day doesn't flash the old one.
+    await fireEvent.press(screen.getByLabelText('Close day'));
+    expect(screen.queryByText('Tuesday, 10 November')).toBeNull();
+  });
+
+  it('empty month line depends on whether the month is past, current or future', async () => {
+    await render(<Garden />);
+    expect(await screen.findByText('Your garden starts today. Plant something.')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Previous month'));
+    expect(await screen.findByText('A quiet month.')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Next month'));
+    await fireEvent.press(screen.getByLabelText('Next month'));
+    expect(await screen.findByText('Still to come.')).toBeTruthy();
   });
 
   it('future tiles are not pressable', async () => {
