@@ -1,4 +1,4 @@
-import React, { useEffect, useState, type ReactNode } from 'react';
+import React, { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Bed, Plant } from '@/domain/types';
 import { PlantArt } from '@/ui/PlantArt';
@@ -23,7 +23,11 @@ interface Props {
   growing: number;
   editing: boolean;
   canRemove: boolean;
-  onRename: (name: string) => void;
+  /** Unsaved name typed in edit mode (held by the screen so Done can flush it). */
+  nameDraft?: string;
+  onChangeName: (name: string) => void;
+  /** Save the draft name; safe to call more than once. */
+  onCommitName: () => void;
   onRecolor: () => void;
   onRemove: () => void;
   onPickForPlanting: () => void;
@@ -41,7 +45,9 @@ export function BedSection({
   growing,
   editing,
   canRemove,
-  onRename,
+  nameDraft,
+  onChangeName,
+  onCommitName,
   onRecolor,
   onRemove,
   onPickForPlanting,
@@ -51,15 +57,7 @@ export function BedSection({
   highlightId,
   footer,
 }: Props) {
-  const [name, setName] = useState(bed.name);
-  useEffect(() => setName(bed.name), [bed.name, editing]);
-
   const accent = flowerColors[bed.color];
-  const commit = () => {
-    const n = name.trim();
-    if (n && n !== bed.name) onRename(n);
-    else setName(bed.name);
-  };
   const editable = editing && !bed.isIdeas;
 
   return (
@@ -80,10 +78,11 @@ export function BedSection({
             <>
               <TextInput
                 accessibilityLabel="Bed name"
-                value={name}
-                onChangeText={setName}
-                onEndEditing={commit}
-                onSubmitEditing={commit}
+                value={nameDraft ?? bed.name}
+                onChangeText={onChangeName}
+                onBlur={onCommitName}
+                onEndEditing={onCommitName}
+                onSubmitEditing={onCommitName}
                 maxLength={40}
                 style={styles.nameInput}
               />

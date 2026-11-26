@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Bed } from '@/domain/types';
-import { validateThought } from '@/domain/validate';
+import { MAX_THOUGHT_LENGTH, validateThought } from '@/domain/validate';
 import { bedColors, border, colors, fonts } from '@/ui/tokens';
 
 interface Props {
@@ -10,11 +10,17 @@ interface Props {
   /** Controlled target bed; falls back to the first bed. */
   selectedBedId?: string | null;
   onSelectBed?: (bedId: string) => void;
+  /** Confirmation shown in the hint (e.g. "Planting into X"); cleared via onClearNotice. */
+  notice?: string | null;
+  onClearNotice?: () => void;
 }
+
+/** Chips stay 38pt tall visually; slop brings the touch target to 44pt. */
+const CHIP_SLOP = { top: 3, bottom: 3 };
 
 export const tintOf = (bed: Bed): string => (bed.color === 'ideas' ? colors.ideasBed : bedColors[bed.color]);
 
-export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed }: Props) {
+export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed, notice, onClearNotice }: Props) {
   const [text, setText] = useState('');
   const [localBedId, setLocalBedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -24,8 +30,13 @@ export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed }: Pro
   const target = beds.find((b) => b.id === wanted) ?? beds[0];
   const ok = validateThought(text) !== null && !!target;
 
-  const pick = (id: string) => {
+  const clearHint = () => {
     setToast(null);
+    onClearNotice?.();
+  };
+
+  const pick = (id: string) => {
+    clearHint();
     if (onSelectBed) onSelectBed(id);
     else setLocalBedId(id);
   };
@@ -37,13 +48,15 @@ export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed }: Pro
     try {
       await onPlant(clean, target.id);
       setText('');
+      onClearNotice?.();
       setToast(`Planted in ${target.name}`);
     } finally {
       busy.current = false;
     }
   };
 
-  const hint = toast ?? (target ? `Into ${target.name}` : 'Add a bed first');
+  const message = toast ?? notice ?? null;
+  const hint = message ?? (target ? `Into ${target.name}` : 'Add a bed first');
 
   return (
     <View style={styles.wrap} accessibilityLabel="Plant a thought">
@@ -54,9 +67,10 @@ export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed }: Pro
           placeholder="What's on your mind?"
           placeholderTextColor="#8A8173"
           value={text}
+          maxLength={MAX_THOUGHT_LENGTH}
           onChangeText={(t) => {
             setText(t);
-            setToast(null);
+            clearHint();
           }}
           onSubmitEditing={() => void submit()}
           returnKeyType="done"
@@ -78,6 +92,7 @@ export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed }: Pro
                 accessibilityLabel={`Plant into ${b.name}`}
                 accessibilityState={{ selected: on }}
                 onPress={() => pick(b.id)}
+                hitSlop={CHIP_SLOP}
                 style={[
                   styles.chip,
                   { backgroundColor: on ? tintOf(b) : colors.bg, borderColor: on ? colors.ink : '#D8D3CA' },
@@ -89,19 +104,22 @@ export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed }: Pro
           })}
         </ScrollView>
         <View style={styles.footer}>
-          <Text style={[styles.hint, { color: toast ? '#2E6B30' : colors.muted }]} numberOfLines={1}>
+          <Text style={[styles.hint, { color: message ? '#2E6B30' : colors.muted }]} numberOfLines={1}>
             {hint}
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Plant"
-            accessibilityState={{ disabled: !ok }}
-            disabled={!ok}
-            onPress={() => void submit()}
-            style={[styles.plant, { backgroundColor: ok ? colors.ink : colors.line }]}
-          >
-            <Text style={[styles.plantText, { color: ok ? '#FFFFFF' : '#6F685C' }]}>+ Plant</Text>
-          </Pressable>
+          <View>
+            <View style={styles.plantShadow} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Plant"
+              accessibilityState={{ disabled: !ok }}
+              disabled={!ok}
+              onPress={() => void submit()}
+              style={[styles.plant, { backgroundColor: ok ? colors.ink : colors.line }]}
+            >
+              <Text style={[styles.plantText, { color: ok ? '#FFFFFF' : '#6F685C' }]}>+ Plant</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </View>
@@ -150,8 +168,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: border,
     borderColor: colors.ink,
-    borderBottomWidth: 5,
-    borderBottomColor: colors.leaf,
+    borderRadius: 16,
+  },
+  plantShadow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 4,
+    bottom: -4,
+    backgroundColor: colors.leaf,
     borderRadius: 16,
   },
   plantText: { fontFamily: fonts.titleXBold, fontSize: 17 },

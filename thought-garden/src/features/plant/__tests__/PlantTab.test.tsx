@@ -79,7 +79,23 @@ describe('Plant tab', () => {
   it('empty soil selects that bed in the box', async () => {
     await render(<PlantTab />);
     await fireEvent.press(screen.getByLabelText('Empty soil · plant a thought here in DSA'));
+    expect(screen.getByText('Planting into DSA')).toBeTruthy();
+    expect(screen.getByLabelText('Plant into DSA').props.accessibilityState.selected).toBe(true);
+    await fireEvent.changeText(input(), 'Heaps');
     expect(screen.getByText('Into DSA')).toBeTruthy();
+  });
+
+  it('chips offer user beds only, never Ideas', async () => {
+    setPlants([mkPlant({ id: 'p2', bedId: 'bI', text: 'Side idea' })]);
+    await render(<PlantTab />);
+    expect(screen.getByLabelText('Plant into Interview')).toBeTruthy();
+    expect(screen.getByLabelText('Plant into DSA')).toBeTruthy();
+    expect(screen.queryByLabelText('Plant into Ideas')).toBeNull();
+  });
+
+  it('caps the quick-plant input at 140 characters', async () => {
+    await render(<PlantTab />);
+    expect(input().props.maxLength).toBe(140);
   });
 
   it('hides the Ideas bed when it has no active plants', async () => {
@@ -111,6 +127,46 @@ describe('Plant tab', () => {
     await fireEvent.changeText(first, 'Interviews');
     await fireEvent(first, 'endEditing');
     expect(fns.renameBed).toHaveBeenCalledWith('bA', 'Interviews');
+  });
+
+  it('pressing Done saves a name still being typed', async () => {
+    await render(<PlantTab />);
+    await fireEvent.press(screen.getByText('Edit beds'));
+    const [first] = screen.getAllByLabelText('Bed name');
+    await fireEvent.changeText(first, 'Mock interviews');
+    await fireEvent.press(screen.getByText('Done'));
+    expect(fns.renameBed).toHaveBeenCalledTimes(1);
+    expect(fns.renameBed).toHaveBeenCalledWith('bA', 'Mock interviews');
+  });
+
+  it('blur saves the name once even when Done follows', async () => {
+    await render(<PlantTab />);
+    await fireEvent.press(screen.getByText('Edit beds'));
+    const [first] = screen.getAllByLabelText('Bed name');
+    await fireEvent.changeText(first, 'Interviews');
+    await fireEvent(first, 'blur');
+    await fireEvent(first, 'endEditing');
+    await fireEvent.press(screen.getByText('Done'));
+    expect(fns.renameBed).toHaveBeenCalledTimes(1);
+    expect(fns.renameBed).toHaveBeenCalledWith('bA', 'Interviews');
+  });
+
+  it('an empty or unchanged name is not saved', async () => {
+    await render(<PlantTab />);
+    await fireEvent.press(screen.getByText('Edit beds'));
+    const [first, second] = screen.getAllByLabelText('Bed name');
+    await fireEvent.changeText(first, '   ');
+    await fireEvent.changeText(second, 'DSA');
+    await fireEvent.press(screen.getByText('Done'));
+    expect(fns.renameBed).not.toHaveBeenCalled();
+  });
+
+  it('hides ✕ when only one user bed remains', async () => {
+    Object.assign(state, { beds: [bedA, ideas] });
+    await render(<PlantTab />);
+    await fireEvent.press(screen.getByText('Edit beds'));
+    expect(screen.getAllByLabelText('Bed name')).toHaveLength(1);
+    expect(screen.queryByLabelText('Remove Interview')).toBeNull();
   });
 
   it('removing a bed with thoughts asks first, Move moves them', async () => {

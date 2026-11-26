@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -34,6 +34,15 @@ export default function PlantTab() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [freshId, setFreshId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Unsaved bed names, keyed by bed id. The ref mirrors state so a blur and a
+  // Done press in the same tick can't both save (or lose) the same draft.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const draftsRef = useRef<Record<string, string>>({});
+  const setDraftMap = (next: Record<string, string>) => {
+    draftsRef.current = next;
+    setDrafts(next);
+  };
 
   const ordered = orderBeds(beds);
   const userBeds = ordered.filter((b) => !b.isIdeas);
@@ -44,8 +53,20 @@ export default function PlantTab() {
     if (created) setFreshId(created.id);
   };
 
+  const changeName = (id: string, name: string) => setDraftMap({ ...draftsRef.current, [id]: name });
+
+  const commitName = (id: string) => {
+    if (!(id in draftsRef.current)) return;
+    const { [id]: draft, ...rest } = draftsRef.current;
+    setDraftMap(rest);
+    const name = draft.trim();
+    const bed = beds.find((b) => b.id === id);
+    if (bed && name && name !== bed.name) void renameBed(id, name);
+  };
+
   const toggleEdit = () => {
-    setEditing((e) => !e);
+    if (editing) Object.keys(draftsRef.current).forEach(commitName);
+    setEditing(!editing);
     setConfirmId(null);
   };
 
@@ -71,7 +92,14 @@ export default function PlantTab() {
           <Text style={styles.summary}>{`${plants.length} growing · ${bloomedToday.length} bloomed`}</Text>
         </View>
 
-        <QuickPlantBox beds={ordered} onPlant={onPlant} selectedBedId={targetId} onSelectBed={setTargetId} />
+        <QuickPlantBox
+          beds={userBeds}
+          onPlant={onPlant}
+          selectedBedId={targetId}
+          onSelectBed={setTargetId}
+          notice={notice}
+          onClearNotice={() => setNotice(null)}
+        />
 
         <View style={styles.bedsHeader}>
           <Text style={styles.h2} accessibilityRole="header">
@@ -80,6 +108,7 @@ export default function PlantTab() {
           <Pressable
             accessibilityRole="button"
             onPress={toggleEdit}
+            hitSlop={{ top: 2, bottom: 2 }}
             style={[styles.editBtn, { backgroundColor: editing ? colors.ink : colors.bg }]}
           >
             <Text style={[styles.editText, { color: editing ? '#FFFFFF' : colors.ink }]}>
@@ -101,13 +130,18 @@ export default function PlantTab() {
                 growing={active.length}
                 editing={editing}
                 canRemove={!bed.isIdeas && userBeds.length > 1}
-                onRename={(name) => void renameBed(bed.id, name)}
+                nameDraft={drafts[bed.id]}
+                onChangeName={(name) => changeName(bed.id, name)}
+                onCommitName={() => commitName(bed.id)}
                 onRecolor={() => recolor(bed.id, bed.color)}
                 onRemove={() => {
                   if (active.length === 0) void removeBed(bed.id);
                   else setConfirmId(bed.id);
                 }}
-                onPickForPlanting={() => setTargetId(bed.id)}
+                onPickForPlanting={() => {
+                  setTargetId(bed.id);
+                  setNotice(`Planting into ${bed.name}`);
+                }}
                 onWater={(id) => void water(id)}
                 onBloom={(id) => void bloom(id)}
                 onPressPlant={setDetailId}
@@ -155,7 +189,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginHorizontal: 20,
   },
-  title: { fontFamily: fonts.titleXBold, fontSize: 44, lineHeight: 46, letterSpacing: -0.9, color: colors.ink },
+  title: { fontFamily: fonts.titleXBold, fontSize: 44, lineHeight: 44, letterSpacing: -0.9, color: colors.ink },
   summary: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.muted },
   bedsHeader: {
     flexDirection: 'row',
