@@ -9,6 +9,7 @@ import { useRepos } from '@/store/AppProvider';
 import { useOnboardingState } from '@/store/onboardingState';
 import { track } from '@/analytics/analytics';
 import { enableReminder } from '@/notifications/reminders';
+import { REMINDERS_SUPPORTED } from '@/notifications/support';
 import { bedColors, border, colors, flowerColors, fonts } from '@/ui/tokens';
 
 type Choice = 'morning' | 'evening';
@@ -49,6 +50,32 @@ export default function Reminder() {
       busy.current = false;
     }
   };
+
+  if (!REMINDERS_SUPPORTED) {
+    return (
+      <OnboardingScreen
+        step="reminder"
+        title="Your first thought is planted"
+        progress={4}
+        hideTitle
+        footer={<BigButton label="Go to my garden" onPress={() => finish(false)} />}
+      >
+        <View style={styles.planted}>
+          <PlantArt stage="seed" size={96} />
+          {planted ? (
+            <>
+              <Text style={styles.plantedIn}>Planted in {planted.bedName}</Text>
+              <Text style={styles.quote}>"{planted.text}"</Text>
+            </>
+          ) : null}
+          <Text accessibilityRole="header" style={styles.h1}>
+            Your first thought is planted
+          </Text>
+          <Text style={[styles.quote, styles.webNote]}>Daily reminders work in the phone app.</Text>
+        </View>
+      </OnboardingScreen>
+    );
+  }
 
   return (
     <OnboardingScreen
@@ -123,6 +150,7 @@ const styles = StyleSheet.create({
   },
   timeLabel: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.muted },
   timeValue: { fontFamily: fonts.titleXBold, fontSize: 22, color: colors.ink },
+  webNote: { marginTop: 12 },
   notNow: { height: 44, paddingHorizontal: 16, justifyContent: 'center' },
   notNowText: { fontFamily: fonts.bodySemi, fontSize: 16, color: colors.muted },
 });

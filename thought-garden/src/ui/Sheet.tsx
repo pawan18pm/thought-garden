@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View } fr
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { border, colors } from '@/ui/tokens';
 import { useReducedMotion } from '@/ui/useReducedMotion';
+import { WEB_MAX_WIDTH } from '@/ui/WebFrame';
 
 interface Props {
   visible: boolean;
@@ -32,7 +33,7 @@ export function Sheet({ visible, onClose, children }: Props) {
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" accessibilityRole="button" />
-        <Animated.View style={[styles.sheet, style]}>
+        <Animated.View style={[styles.sheet, Platform.OS === 'web' && styles.webSheet, style]}>
           <View style={styles.handle} />
           {children}
         </Animated.View>
@@ -55,6 +56,8 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     maxHeight: '90%',
   },
+  // Modal covers the whole browser window on web; keep the sheet inside the phone-width column.
+  webSheet: { width: '100%', maxWidth: WEB_MAX_WIDTH, alignSelf: 'center' },
   handle: {
     alignSelf: 'center',
     width: 40,

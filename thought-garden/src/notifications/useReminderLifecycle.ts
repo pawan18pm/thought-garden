@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { dayKey } from '@/domain/dates';
 import { track } from '@/analytics/analytics';
 import { rescheduleReminders, type SettingsStore } from './reminders';
+import { REMINDERS_SUPPORTED } from './support';
 
 /** Keeps the rolling reminder window fresh and records reminder taps. Mount once, after boot. */
 export function useReminderLifecycle(settings: SettingsStore): void {
@@ -32,6 +33,8 @@ export function useReminderLifecycle(settings: SettingsStore): void {
       }
       prev = next;
     });
+
+    if (!REMINDERS_SUPPORTED) return () => appSub.remove();
 
     // Clear after handling so the same tap isn't counted again on the next mount or cold start.
     const clear = () => {

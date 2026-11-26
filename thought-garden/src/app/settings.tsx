@@ -13,6 +13,7 @@ import { useGarden, useRepos } from '@/store/AppProvider';
 import { PERSONA_LABELS } from '@/domain/personas';
 import type { Persona } from '@/domain/types';
 import { disableReminder, enableReminder } from '@/notifications/reminders';
+import { REMINDERS_SUPPORTED } from '@/notifications/support';
 import { useOnboardingState } from '@/store/onboardingState';
 import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
 import { setAnalyticsEnabled } from '@/analytics/analytics';
@@ -125,6 +126,15 @@ function ReminderSection() {
           <ChunkyButton label="Open iOS Settings" onPress={() => void Linking.openSettings()} />
         </View>
       )}
+    </View>
+  );
+}
+
+function WebReminderNote() {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.h2} accessibilityRole="header">Daily reminder</Text>
+      <Text style={[styles.note, styles.gap]}>Reminders work in the phone app.</Text>
     </View>
   );
 }
@@ -278,7 +288,7 @@ export default function Settings() {
         <ManageBeds />
       </View>
       <View style={[styles.block, { marginTop: 18 }]}>
-        <ReminderSection />
+        {REMINDERS_SUPPORTED ? <ReminderSection /> : <WebReminderNote />}
       </View>
       <View style={[styles.block, { marginTop: 18 }]}>
         <ListRows />

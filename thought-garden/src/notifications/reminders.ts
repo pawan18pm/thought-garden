@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { REMINDERS_SUPPORTED } from './support';
 import { reminderDates, reminderLine } from '@/domain/reminder';
 import { track } from '@/analytics/analytics';
 
@@ -13,6 +14,7 @@ let settings: SettingsStore | null = null;
 /** Called once from boot: gives this module settings access and sets the foreground handler. */
 export function initReminders(s: SettingsStore): void {
   settings = s;
+  if (!REMINDERS_SUPPORTED) return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -33,6 +35,10 @@ export async function enableReminder(time: string): Promise<boolean> {
     if (!/^\d{2}:\d{2}$/.test(time)) throw new Error(`Invalid reminder time: ${time}`);
     const s = store();
     await s.set('reminder_time', time);
+    if (!REMINDERS_SUPPORTED) {
+      await s.set('reminder_enabled', '0');
+      return false;
+    }
     let status = (await Notifications.getPermissionsAsync()).status;
     if (status !== 'granted') status = (await Notifications.requestPermissionsAsync()).status;
     if (status !== 'granted') {
@@ -53,6 +59,7 @@ export async function enableReminder(time: string): Promise<boolean> {
 export async function disableReminder(): Promise<void> {
   try {
     await store().set('reminder_enabled', '0');
+    if (!REMINDERS_SUPPORTED) return;
     await Notifications.cancelAllScheduledNotificationsAsync();
     track('reminder_disabled', {});
   } catch (e) {
@@ -70,6 +77,7 @@ export function rescheduleReminders(now: Date = new Date()): Promise<void> {
 }
 
 async function doReschedule(now: Date): Promise<void> {
+  if (!REMINDERS_SUPPORTED) return;
   try {
     const s = store();
     await Notifications.cancelAllScheduledNotificationsAsync();

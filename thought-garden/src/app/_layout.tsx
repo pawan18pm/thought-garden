@@ -16,6 +16,7 @@ import { useReminderLifecycle } from '@/notifications/useReminderLifecycle';
 import { useDayRollover } from '@/store/useDayRollover';
 import { useOnboardingState } from '@/store/onboardingState';
 import { primeReducedMotion } from '@/ui/useReducedMotion';
+import { WebFrame } from '@/ui/WebFrame';
 
 // Hold the splash until fonts and the database are ready, so launch goes splash -> first
 // screen instead of splash -> blank frame -> placeholder -> first screen.
@@ -46,6 +47,14 @@ function DayRollover({ store }: { store: Boot['store'] }) {
 }
 
 export default function RootLayout() {
+  return (
+    <WebFrame>
+      <RootContent />
+    </WebFrame>
+  );
+}
+
+function RootContent() {
   const [fontsLoaded, fontError] = useFonts({
     BricolageGrotesque_700Bold,
     BricolageGrotesque_800ExtraBold,
