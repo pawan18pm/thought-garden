@@ -10,22 +10,24 @@ export default function Welcome() {
   return (
     <OnboardingScreen
       step="welcome"
-      title="hey, welcome to Thought Garden."
-      titleSize={30}
-      topPadding={96}
+      title="Your best ideas deserve to grow."
+      topPadding={72}
       hero={
         <View style={styles.logo}>
           <LogoMark size={64} />
         </View>
       }
-      footer={<BigButton width={220} fontSize={20} label="let's grow" onPress={() => router.push('/onboarding/persona')} />}
+      footer={<BigButton label="Start my garden" onPress={() => router.push('/onboarding/persona')} />}
     >
       <View style={styles.paras}>
-        <Text style={styles.p}>your head is full of good thoughts. most of them are gone by tomorrow.</Text>
         <Text style={styles.p}>
-          here, every thought gets planted in a bed. water it a little each day. when it's done, it blooms.
+          Every day you think of things to learn, build or try. Most of them get lost in notes, tabs and chats.
         </Text>
-        <Text style={styles.p}>that's the whole app. simple on purpose.</Text>
+        <Text style={styles.p}>
+          Thought Garden gives each one a home. Plant it in a bed, water it when you make progress, and watch it bloom
+          when it&apos;s done.
+        </Text>
+        <Text style={[styles.p, styles.em]}>Small steps. Real progress.</Text>
       </View>
     </OnboardingScreen>
   );
@@ -43,6 +45,8 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     borderRadius: 26,
   },
-  paras: { gap: 16, marginTop: -2 },
+  paras: { gap: 16 },
   p: { fontFamily: fonts.body, fontSize: 18, lineHeight: 26, color: colors.ink },
+  // Leaf green, darkened to keep AA contrast on white.
+  em: { fontFamily: fonts.bodyBold, color: '#2E6B30' },
 });

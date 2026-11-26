@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '@/ui/PressableScale';
 import { useRouter } from 'expo-router';
 import { OnboardingScreen } from '@/features/onboarding/OnboardingScreen';
 import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
@@ -25,7 +26,7 @@ export default function PersonaScreen() {
           const own = c.id === 'other';
           const key = BED_COLOR_ORDER[i];
           return (
-            <Pressable
+            <PressableScale
               key={c.id}
               accessibilityRole="button"
               accessibilityLabel={PERSONA_LABELS[c.id]}
@@ -47,11 +48,11 @@ export default function PersonaScreen() {
               >
                 {own ? <Text style={styles.plus}>+</Text> : null}
               </View>
-              <View>
+              <View style={styles.text}>
                 <Text style={styles.label}>{PERSONA_LABELS[c.id]}</Text>
-                <Text style={styles.sub}>{c.sub}</Text>
+                <Text numberOfLines={1} style={styles.sub}>{c.sub}</Text>
               </View>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </View>
@@ -82,7 +83,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  text: { flex: 1, minWidth: 0 },
   plus: { fontSize: 22, fontWeight: '700', color: colors.ink },
   label: { fontFamily: fonts.titleBold, fontSize: 20, color: colors.ink },
-  sub: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
+  sub: { fontFamily: fonts.body, fontSize: 14, color: colors.muted },
 });

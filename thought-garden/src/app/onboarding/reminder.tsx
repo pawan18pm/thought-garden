@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { PressableScale } from '@/ui/PressableScale';
 import { useRouter } from 'expo-router';
 import { OnboardingScreen, BigButton } from '@/features/onboarding/OnboardingScreen';
 import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
@@ -55,13 +56,16 @@ export default function Reminder() {
       title="Want a daily nudge to water it?"
       progress={4}
       hideTitle
-      footer={
-        <View style={styles.footer}>
-          <BigButton fontSize={20} label="Yes, nudge me" disabled={!time} onPress={() => finish(true)} />
-          <Pressable accessibilityRole="button" accessibilityLabel="Not now" onPress={() => finish(false)} style={styles.notNow}>
-            <Text style={styles.notNowText}>Not now</Text>
-          </Pressable>
-        </View>
+      footer={<BigButton label="Yes, nudge me" disabled={!time} onPress={() => finish(true)} />}
+      footerSecondary={
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel="Not now"
+          onPress={() => finish(false)}
+          style={styles.notNow}
+        >
+          <Text style={styles.notNowText}>Not now</Text>
+        </PressableScale>
       }
     >
       <View style={styles.planted}>
@@ -80,7 +84,7 @@ export default function Reminder() {
         {TIMES.map((t) => {
           const on = t.id === choice;
           return (
-            <Pressable
+            <PressableScale
               key={t.id}
               accessibilityRole="button"
               accessibilityLabel={`${t.label} ${t.time}`}
@@ -93,7 +97,7 @@ export default function Reminder() {
             >
               <Text style={styles.timeLabel}>{t.label}</Text>
               <Text style={styles.timeValue}>{t.time}</Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </View>
@@ -119,7 +123,6 @@ const styles = StyleSheet.create({
   },
   timeLabel: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.muted },
   timeValue: { fontFamily: fonts.titleXBold, fontSize: 22, color: colors.ink },
-  footer: { alignItems: 'center', gap: 10 },
   notNow: { height: 44, paddingHorizontal: 16, justifyContent: 'center' },
   notNowText: { fontFamily: fonts.bodySemi, fontSize: 16, color: colors.muted },
 });

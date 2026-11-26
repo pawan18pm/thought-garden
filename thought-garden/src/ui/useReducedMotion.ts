@@ -1,27 +1,46 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
-// Module-level cache so a freshly mounted component doesn't start with a wrong `false`.
-let cached = false;
+// One shared AccessibilityInfo subscription for the whole app (every animated
+// button reads this), instead of one native listener + query per component.
+let current = false;
+let started = false;
+const listeners = new Set<() => void>();
+
+function publish(v: boolean) {
+  if (v === current) return;
+  current = v;
+  listeners.forEach((l) => l());
+}
+
+function start() {
+  if (started) return;
+  started = true;
+  try {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(publish)
+      .catch(() => {});
+    AccessibilityInfo.addEventListener('reduceMotionChanged', publish);
+  } catch {
+    // no accessibility module (tests, web): assume motion is fine
+  }
+}
+
+function subscribe(l: () => void) {
+  start();
+  listeners.add(l);
+  return () => {
+    listeners.delete(l);
+  };
+}
+
+const read = () => current;
 
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(cached);
-  useEffect(() => {
-    let alive = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((v) => {
-        cached = v;
-        if (alive) setReduced(v);
-      })
-      .catch(() => {});
-    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (v) => {
-      cached = v;
-      setReduced(v);
-    });
-    return () => {
-      alive = false;
-      sub.remove();
-    };
-  }, []);
-  return reduced;
+  return useSyncExternalStore(subscribe, read, read);
+}
+
+/** Kick off the first query early (root layout) so the first screen already knows. */
+export function primeReducedMotion(): void {
+  start();
 }

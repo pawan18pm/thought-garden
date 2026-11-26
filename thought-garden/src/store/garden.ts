@@ -46,6 +46,10 @@ export function createGardenStore(repos: Repos) {
       set({ beds, plants, bloomedToday, ready: true });
     };
 
+    const refreshBeds = async () => {
+      set({ beds: await repos.beds.list() });
+    };
+
     const watering = new Set<string>();
 
     return {
@@ -126,21 +130,23 @@ export function createGardenStore(repos: Repos) {
         track('plant_deleted', {});
       },
 
+      // Bed-only writes reload just the beds: plants and today's blooms can't change,
+      // and the plants query (with its per-row watering count) is the costly part of a full refresh.
       async addBed(name, color) {
         const bed = await repos.beds.create(name, color);
-        await refresh();
+        await refreshBeds();
         track('bed_created', {});
         return bed;
       },
 
       async renameBed(id, name) {
         await repos.beds.rename(id, name);
-        await refresh();
+        await refreshBeds();
       },
 
       async recolorBed(id, color) {
         await repos.beds.setColor(id, color);
-        await refresh();
+        await refreshBeds();
       },
 
       async toggleFold(id) {

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
 import { useRouter } from 'expo-router';
-import { OnboardingScreen, BigButton } from '@/features/onboarding/OnboardingScreen';
+import { OnboardingScreen, BigButton, useRevealOnFocus } from '@/features/onboarding/OnboardingScreen';
+import { PressableScale } from '@/ui/PressableScale';
 import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
 import { PlantArt } from '@/ui/PlantArt';
 import { useReducedMotion } from '@/ui/useReducedMotion';
@@ -11,6 +12,8 @@ import { validateThought } from '@/domain/validate';
 import { bedColors, border, colors, flowerColors, fonts } from '@/ui/tokens';
 
 const GROW_MS = 900;
+/** Focus once the push transition has settled, so the keyboard doesn't slide up mid-animation. */
+const FOCUS_DELAY_MS = 450;
 
 export default function FirstPlant() {
   const router = useRouter();
@@ -25,13 +28,17 @@ export default function FirstPlant() {
   const [grown, setGrown] = useState(false);
   const busy = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<TextInputInstance>(null);
+  const reveal = useRevealOnFocus();
+  const pop = useRef(new Animated.Value(1)).current;
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), FOCUS_DELAY_MS);
+    return () => {
+      clearTimeout(t);
       if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
   // Only the beds created during onboarding; on a resume they are the user's existing beds.
   const createdIds = draftBeds.filter((b) => b.bedId).map((b) => b.bedId);
@@ -56,8 +63,14 @@ export default function FirstPlant() {
       await repos.settings.set('onboarding_done', '1');
       useOnboardingState.getState().setDone(true);
       setGrown(true);
-      if (reduced) router.push('/onboarding/reminder');
-      else timer.current = setTimeout(() => router.push('/onboarding/reminder'), GROW_MS);
+      if (reduced) {
+        router.push('/onboarding/reminder');
+        return;
+      }
+      // Visible payoff while we wait: the seed settles in with a little pop, then we move on.
+      pop.setValue(0.6);
+      Animated.spring(pop, { toValue: 1, speed: 14, bounciness: 12, useNativeDriver: true }).start();
+      timer.current = setTimeout(() => router.push('/onboarding/reminder'), GROW_MS);
     } catch (e) {
       console.error('First plant failed', e);
       busy.current = false;
@@ -73,7 +86,6 @@ export default function FirstPlant() {
       hideBack={grown}
       footer={
         <BigButton
-          width={280}
           tone="ink"
           label={`Plant it in ${target?.name ?? ''}`}
           disabled={!valid || grown}
@@ -84,11 +96,12 @@ export default function FirstPlant() {
       <View style={[styles.card, { backgroundColor: tint, borderBottomColor: accent }]}>
         <View style={styles.cardHead}>
           <Text style={styles.cardName}>{target?.name ?? ''}</Text>
-          <Text style={styles.badge}>new seed</Text>
+          <Text style={styles.badge}>{grown ? 'planted!' : 'new seed'}</Text>
         </View>
         <TextInput
+          ref={inputRef}
           accessibilityLabel="Your first thought"
-          autoFocus
+          onFocus={() => reveal(inputRef)}
           multiline
           submitBehavior="submit"
           returnKeyType="done"
@@ -101,9 +114,9 @@ export default function FirstPlant() {
           placeholderTextColor={colors.muted}
           style={styles.input}
         />
-        <View style={styles.art}>
+        <Animated.View style={[styles.art, { transform: [{ scale: pop }] }]}>
           <PlantArt stage="seed" size={54} />
-        </View>
+        </Animated.View>
         <View style={styles.soil} />
       </View>
       <Text style={styles.which}>Which bed does it go in?</Text>
@@ -112,11 +125,13 @@ export default function FirstPlant() {
           const on = b.id === target?.id;
           const k = b.color === 'ideas' ? null : b.color;
           return (
-            <Pressable
+            <PressableScale
               key={b.id}
+              pressScale={0.94}
               accessibilityRole="button"
               accessibilityLabel={b.name}
               accessibilityState={{ selected: on }}
+              disabled={grown}
               onPress={() => setPickedId(b.id)}
               style={[
                 styles.chip,
@@ -126,7 +141,7 @@ export default function FirstPlant() {
               ]}
             >
               <Text style={styles.chipText}>{b.name}</Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </View>
@@ -171,7 +186,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     textAlignVertical: 'top',
   },
-  art: { alignItems: 'center', paddingTop: 10 },
+  art: { alignItems: 'center', paddingTop: 10, transformOrigin: 'bottom' },
   soil: { height: 16, backgroundColor: colors.soil, borderTopWidth: border, borderTopColor: colors.ink },
   which: { marginTop: 22, marginBottom: 10, fontFamily: fonts.bodySemi, fontSize: 14, color: colors.muted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import {
   BricolageGrotesque_700Bold,
@@ -14,6 +15,25 @@ import { AppProvider } from '@/store/AppProvider';
 import { useReminderLifecycle } from '@/notifications/useReminderLifecycle';
 import { useDayRollover } from '@/store/useDayRollover';
 import { useOnboardingState } from '@/store/onboardingState';
+import { primeReducedMotion } from '@/ui/useReducedMotion';
+
+// Hold the splash until fonts and the database are ready, so launch goes splash -> first
+// screen instead of splash -> blank frame -> placeholder -> first screen.
+try {
+  SplashScreen.setOptions({ fade: true, duration: 250 });
+  void SplashScreen.preventAutoHideAsync().catch(() => {});
+} catch {
+  // no native splash module (tests, web)
+}
+primeReducedMotion();
+
+function hideSplash() {
+  try {
+    SplashScreen.hide();
+  } catch {
+    // ignore
+  }
+}
 
 function ReminderLifecycle({ settings }: { settings: Boot['repos']['settings'] }) {
   useReminderLifecycle(settings);
@@ -45,10 +65,13 @@ export default function RootLayout() {
       (b) => {
         useOnboardingState.getState().seed(b.onboardingDone);
         if (!cancelled) setBoot(b);
+        // Let the first screen paint underneath before the splash fades.
+        requestAnimationFrame(hideSplash);
       },
       (e) => {
         console.error('Startup failed', e);
         if (!cancelled) setFailed(true);
+        hideSplash();
       },
     );
     return () => {
@@ -59,7 +82,7 @@ export default function RootLayout() {
   if (!loaded) return null;
   if (failed) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontSize: 16, color: colors.ink, marginBottom: 16 }}>Something went wrong. Let's try that again.</Text>
         <Pressable
           accessibilityRole="button"
@@ -75,13 +98,16 @@ export default function RootLayout() {
       </View>
     );
   }
-  if (!boot) return <View style={{ flex: 1, backgroundColor: colors.paper }} />;
+  if (!boot) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <AppProvider store={boot.store} repos={boot.repos}>
         <ReminderLifecycle settings={boot.repos.settings} />
         <DayRollover store={boot.store} />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+          {/* Finishing onboarding replaces the stack with the tabs: cross-fade rather than slide. */}
+          <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        </Stack>
       </AppProvider>
     </GestureHandlerRootView>
   );

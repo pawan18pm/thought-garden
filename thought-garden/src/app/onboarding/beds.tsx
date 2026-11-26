@@ -1,8 +1,15 @@
 import React, { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
 import { useRouter } from 'expo-router';
-import { OnboardingScreen, BigButton, onboardingStyles } from '@/features/onboarding/OnboardingScreen';
-import { MAX_BEDS, useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
+import { useShallow } from 'zustand/react/shallow';
+import {
+  OnboardingScreen,
+  BigButton,
+  onboardingStyles,
+  useRevealOnFocus,
+} from '@/features/onboarding/OnboardingScreen';
+import { MAX_BEDS, useOnboardingDraft, type DraftBed } from '@/features/onboarding/useOnboardingDraft';
+import { PressableScale } from '@/ui/PressableScale';
 import { useGarden, useRepos } from '@/store/AppProvider';
 import { bedColors, border, colors, flowerColors, fonts } from '@/ui/tokens';
 
@@ -17,8 +24,19 @@ export default function Beds() {
   const recolorBed = useGarden((s) => s.recolorBed);
   const removeBed = useGarden((s) => s.removeBed);
   const plantsInBed = useGarden((s) => s.plantsInBed);
-  const { persona, beds, rename, recolor, remove, addNamed, clear, setBedId, setFirstBedId } = useOnboardingDraft();
-  const [newBed, setNewBed] = useState('');
+  const { persona, beds, rename, recolor, remove, addNamed, clear, setBedId, setFirstBedId } = useOnboardingDraft(
+    useShallow((s) => ({
+      persona: s.persona,
+      beds: s.beds,
+      rename: s.rename,
+      recolor: s.recolor,
+      remove: s.remove,
+      addNamed: s.addNamed,
+      clear: s.clear,
+      setBedId: s.setBedId,
+      setFirstBedId: s.setFirstBedId,
+    })),
+  );
   const busy = useRef(false);
 
   const hasBeds = beds.length > 0;
@@ -26,20 +44,19 @@ export default function Beds() {
   const names = beds.map((b) => b.name.trim().toLowerCase());
   const ideas = IDEAS.filter((n) => !names.includes(n.toLowerCase())).slice(0, 5);
 
-  const add = (name: string) => {
-    if (addNamed(name)) setNewBed('');
-  };
-
   const create = async () => {
     if (busy.current) return;
     busy.current = true;
     try {
-      if (persona) await repos.settings.set('persona', persona);
+      // Saved alongside the bed writes rather than ahead of them.
+      const savePersona = Promise.resolve(persona ? repos.settings.set('persona', persona) : undefined);
+      savePersona.catch(() => {}); // still awaited below; this just keeps an early bed failure from leaving it unhandled
       const st = useOnboardingDraft.getState();
       const existingUser = storeBeds.filter((b) => !b.isIdeas);
       if (existingUser.length > 0 && st.createdIds.length === 0) {
         // Onboarding was interrupted earlier: beds already exist, do not recreate them.
         if (!st.firstBedId) setFirstBedId(existingUser[0].id);
+        await savePersona;
         router.push('/onboarding/first-plant');
         return;
       }
@@ -65,6 +82,7 @@ export default function Beds() {
       }
       const first = useOnboardingDraft.getState().beds[0]?.bedId;
       if (first) setFirstBedId(first);
+      await savePersona;
       router.push('/onboarding/first-plant');
       busy.current = false;
     } catch (e) {
@@ -98,9 +116,9 @@ export default function Beds() {
       progress={2}
       back
       headerRight={
-        <Pressable accessibilityRole="button" accessibilityLabel="Skip" onPress={onSkip} style={styles.skip}>
+        <PressableScale accessibilityRole="button" accessibilityLabel="Skip" onPress={onSkip} style={styles.skip}>
           <Text style={styles.skipText}>Skip</Text>
-        </Pressable>
+        </PressableScale>
       }
       footer={<BigButton label={label} disabled={!valid} onPress={onContinue} />}
     >
@@ -109,84 +127,132 @@ export default function Beds() {
           ? 'Start with one bed for each kind of thought. Name them your way.'
           : 'We suggested these for you. Rename, recolor, remove or add your own.'}
       </Text>
-      <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
+      <View style={styles.list}>
         {beds.map((b) => (
-          <View key={b.key} style={[styles.row, { borderBottomColor: flowerColors[b.color] }]}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Change color of ${b.name}`}
-              onPress={() => recolor(b.key)}
-              style={[styles.swatch, { backgroundColor: bedColors[b.color] }]}
-            />
-            <TextInput
-              accessibilityLabel="Bed name"
-              value={b.name}
-              maxLength={30}
-              onChangeText={(t) => rename(b.key, t)}
-              style={styles.name}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Remove ${b.name}`}
-              onPress={() => remove(b.key)}
-              style={styles.remove}
-            >
-              <Text style={styles.removeText}>✕</Text>
-            </Pressable>
-          </View>
+          <BedRow key={b.key} bed={b} onRename={rename} onRecolor={recolor} onRemove={remove} />
         ))}
-        {beds.length < MAX_BEDS ? (
-          <>
-            <View style={styles.addRow}>
-              <TextInput
-                accessibilityLabel="New bed name"
-                placeholder={hasBeds ? 'Name another bed…' : 'Name your first bed…'}
-                placeholderTextColor="#6F685C"
-                value={newBed}
-                maxLength={30}
-                onChangeText={setNewBed}
-                onSubmitEditing={() => add(newBed)}
-                returnKeyType="done"
-                style={styles.addInput}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Add"
-                onPress={() => add(newBed)}
-                style={[styles.addBtn, newBed.trim() ? { backgroundColor: colors.ink } : null]}
-              >
-                <Text style={[styles.addText, newBed.trim() ? { color: '#FFFFFF' } : null]}>Add</Text>
-              </Pressable>
-            </View>
-            <View style={styles.ideas}>
-              {ideas.map((n) => (
-                <Pressable
-                  key={n}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Add ${n}`}
-                  onPress={() => add(n)}
-                  style={styles.idea}
-                >
-                  <Text style={styles.ideaText}>+ {n}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        ) : null}
+        {beds.length < MAX_BEDS ? <AddBed hasBeds={hasBeds} ideas={ideas} onAdd={addNamed} /> : null}
         {hasBeds ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Clear all and start blank" onPress={clear} style={styles.clear}>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel="Clear all and start blank"
+            onPress={clear}
+            style={styles.clear}
+          >
             <Text style={styles.clearText}>Clear all and start blank</Text>
-          </Pressable>
+          </PressableScale>
         ) : null}
-      </ScrollView>
+      </View>
     </OnboardingScreen>
+  );
+}
+
+/** One editable bed. Its own component so typing in one name doesn't redraw the others. */
+function BedRow({
+  bed,
+  onRename,
+  onRecolor,
+  onRemove,
+}: {
+  bed: DraftBed;
+  onRename: (key: string, name: string) => void;
+  onRecolor: (key: string) => void;
+  onRemove: (key: string) => void;
+}) {
+  const ref = useRef<TextInputInstance>(null);
+  const reveal = useRevealOnFocus();
+  return (
+    <View style={[styles.row, { borderBottomColor: flowerColors[bed.color] }]}>
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={`Change color of ${bed.name}`}
+        onPress={() => onRecolor(bed.key)}
+        pressScale={0.9}
+        style={[styles.swatch, { backgroundColor: bedColors[bed.color] }]}
+      />
+      <TextInput
+        ref={ref}
+        accessibilityLabel="Bed name"
+        value={bed.name}
+        maxLength={30}
+        onChangeText={(t) => onRename(bed.key, t)}
+        onFocus={() => reveal(ref)}
+        returnKeyType="done"
+        style={styles.name}
+      />
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={`Remove ${bed.name}`}
+        onPress={() => onRemove(bed.key)}
+        pressScale={0.9}
+        style={styles.remove}
+      >
+        <Text style={styles.removeText}>✕</Text>
+      </PressableScale>
+    </View>
+  );
+}
+
+/** The "add a bed" field and idea chips. Holds its own text so keystrokes stay local. */
+function AddBed({ hasBeds, ideas, onAdd }: { hasBeds: boolean; ideas: string[]; onAdd: (name: string) => boolean }) {
+  const [text, setText] = useState('');
+  const ref = useRef<TextInputInstance>(null);
+  const reveal = useRevealOnFocus();
+  const add = (name: string) => {
+    if (!onAdd(name)) return;
+    setText('');
+    // The new row pushes this field down; keep it above the keyboard.
+    reveal(ref);
+  };
+  const ready = text.trim().length > 0;
+  return (
+    <>
+      <View style={styles.addRow}>
+        <TextInput
+          ref={ref}
+          accessibilityLabel="New bed name"
+          placeholder={hasBeds ? 'Name another bed…' : 'Name your first bed…'}
+          placeholderTextColor="#6F685C"
+          value={text}
+          maxLength={30}
+          onChangeText={setText}
+          onFocus={() => reveal(ref)}
+          onSubmitEditing={() => add(text)}
+          returnKeyType="done"
+          style={styles.addInput}
+        />
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel="Add"
+          onPress={() => add(text)}
+          pressScale={0.94}
+          style={[styles.addBtn, ready ? { backgroundColor: colors.ink } : null]}
+        >
+          <Text style={[styles.addText, ready ? { color: '#FFFFFF' } : null]}>Add</Text>
+        </PressableScale>
+      </View>
+      <View style={styles.ideas}>
+        {ideas.map((n) => (
+          <PressableScale
+            key={n}
+            accessibilityRole="button"
+            accessibilityLabel={`Add ${n}`}
+            onPress={() => add(n)}
+            pressScale={0.94}
+            style={styles.idea}
+          >
+            <Text style={styles.ideaText}>+ {n}</Text>
+          </PressableScale>
+        ))}
+      </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   skip: { height: 44, paddingHorizontal: 4, justifyContent: 'center' },
   skipText: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.muted },
-  list: { gap: 12, paddingBottom: 24 },
+  list: { gap: 12 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

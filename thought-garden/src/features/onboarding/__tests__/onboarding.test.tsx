@@ -6,6 +6,7 @@ import Persona from '@/app/onboarding/persona';
 import Beds from '@/app/onboarding/beds';
 import FirstPlant from '@/app/onboarding/first-plant';
 import Reminder from '@/app/onboarding/reminder';
+import Welcome from '@/app/onboarding/welcome';
 
 const mockRouter = { push: jest.fn(), replace: jest.fn() };
 jest.mock('expo-router', () => ({
@@ -55,6 +56,22 @@ beforeEach(() => {
 const continueBtn = () => screen.getByLabelText(/^Continue with/);
 
 describe('onboarding', () => {
+  it('welcome shows the approved copy and starts the garden', async () => {
+    await render(<Welcome />);
+    expect(screen.getByText('Your best ideas deserve to grow.')).toBeTruthy();
+    expect(
+      screen.getByText('Every day you think of things to learn, build or try. Most of them get lost in notes, tabs and chats.'),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Thought Garden gives each one a home. Plant it in a bed, water it when you make progress, and watch it bloom when it's done.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText('Small steps. Real progress.')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Start my garden'));
+    expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/persona');
+  });
+
   it('persona jobPrep shows its suggested chips', async () => {
     await render(<Persona />);
     await fireEvent.press(screen.getByLabelText('A new job'));
