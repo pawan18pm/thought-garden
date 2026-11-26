@@ -39,5 +39,5 @@ it('changing time while permission was revoked turns the switch off and shows th
   });
   await waitFor(() => expect(screen.getByLabelText('Remind me daily').props.value).toBe(false));
   expect(mockEnable).toHaveBeenCalledWith('07:30');
-  expect(screen.getByText('Notifications are off for Mindbed. Turn them on in iOS Settings.')).toBeTruthy();
+  expect(screen.getByText('Notifications are off for Thought Garden. Turn them on in iOS Settings.')).toBeTruthy();
 });

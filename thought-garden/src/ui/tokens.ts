@@ -7,6 +7,10 @@ export const colors = {
   leaf: '#3F9142',
   leafLight: '#7CC47F',
   ideasBed: '#FFFFFF',
+  bg: '#FFFFFF',
+  line: '#EFEDE8',
+  restSoil: '#E3D6C6',
+  restSoilLine: '#C9B8A3',
   pink: '#F28AA8',
 } as const;
 

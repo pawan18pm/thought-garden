@@ -79,7 +79,7 @@ async function doReschedule(now: Date): Promise<void> {
     for (let i = 0; i < dates.length; i++) {
       await Notifications.scheduleNotificationAsync({
         identifier: `reminder-${i}`,
-        content: { title: 'Mindbed', body: reminderLine(i) },
+        content: { title: 'Thought Garden', body: reminderLine(i) },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: dates[i] },
       });
     }

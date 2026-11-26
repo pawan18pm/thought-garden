@@ -1,4 +1,4 @@
-# Tech Stack Roadmap: Mindbed
+# Tech Stack Roadmap: Thought Garden
 
 > Date: 2026-11-19 · Owner decision: build the **MVP** column now; Phase 2/3 are for future review.
 > Related: [SRD](srd.md) · [Technical design](superpowers/specs/2026-11-19-thought-garden-design.md)
@@ -39,5 +39,5 @@
 3. **Data loss risk:** MVP data lives only on the phone. Deleting the app deletes the garden. Say so to testers; sync fixes it in Phase 3.
 4. **Keys and secrets:** the PostHog key lives in `.env` (git-ignored). Never commit keys.
 5. **Expo Go limits:** share extension and widgets need an EAS development build, so they stay in Phase 2+.
-6. **App name and icon:** App name is **Mindbed**. Check App Store name availability before Phase 2.
+6. **App name and icon:** App name is **Thought Garden**. Check App Store name availability before Phase 2.
 7. **Backups of your own work:** the project uses git locally. Push to a private GitHub repo for safety (portfolio link later).

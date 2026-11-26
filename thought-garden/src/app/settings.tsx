@@ -99,7 +99,7 @@ function ReminderSection() {
       </View>
       {denied && (
         <View style={styles.gap}>
-          <Text style={styles.note}>Notifications are off for Mindbed. Turn them on in iOS Settings.</Text>
+          <Text style={styles.note}>Notifications are off for Thought Garden. Turn them on in iOS Settings.</Text>
           <ChunkyButton label="Open iOS Settings" onPress={() => void Linking.openSettings()} />
         </View>
       )}
@@ -193,7 +193,7 @@ export default function Settings() {
       <PersonaSection />
       <PrivacySection />
       <Section title="About">
-        <Text style={styles.label}>Mindbed v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+        <Text style={styles.label}>Thought Garden v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
       </Section>
       {__DEV__ && <DevSection />}
     </ScrollView>

@@ -68,7 +68,7 @@ describe('reminders', () => {
       const t = req.trigger as { type: string; date: Date };
       expect(t.type).toBe('date');
       expect(t.date.toDateString()).not.toBe(today);
-      expect(req.content.title).toBe('Mindbed');
+      expect(req.content.title).toBe('Thought Garden');
     }
   });
 
