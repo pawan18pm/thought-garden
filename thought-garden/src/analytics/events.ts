@@ -14,7 +14,7 @@ export type EventMap = {
     source: 'fab' | 'bed_plus' | 'onboarding';
   };
   plant_watered: { water_count: number };
-  plant_bloomed: { water_count: number; age_days: number };
+  plant_bloomed: { water_count: number; age_days: number; auto?: boolean };
   bloom_undone: NoProps;
   plant_deleted: NoProps;
   bed_created: NoProps;

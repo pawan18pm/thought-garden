@@ -7,12 +7,16 @@ describe('personas', () => {
     expect(suggestedBeds('professional')).toEqual(['Work', 'Upskilling', 'Side project']);
     expect(suggestedBeds('builder')).toEqual(['Ideas to explore', 'Build', 'Learn', 'Launch']);
   });
+  it('other has no suggestions', () => {
+    expect(suggestedBeds('other')).toEqual([]);
+  });
   it('has labels', () => {
     expect(PERSONA_LABELS).toEqual({
-      student: '🎓 Student',
-      jobPrep: '💼 Preparing for a job',
-      professional: '🧑‍💻 Working professional',
-      builder: '💡 Builder / has ideas',
+      student: 'Studies',
+      jobPrep: 'A new job',
+      professional: 'My work',
+      builder: 'My own ideas',
+      other: 'Something else',
     });
   });
 });

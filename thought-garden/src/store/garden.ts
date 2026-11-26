@@ -5,6 +5,7 @@ import type { Bed, Plant, Priority } from '@/domain/types';
 import type { BedColorKey } from '@/ui/tokens';
 import { sortPlants } from '@/domain/ordering';
 import { validateThought } from '@/domain/validate';
+import { BLOOM_AT_WATERS } from '@/domain/stages';
 import { dayKey } from '@/domain/dates';
 import { setAnalyticsEnabled, track } from '@/analytics/analytics';
 
@@ -24,12 +25,12 @@ export interface GardenState {
   unbloom(id: string): Promise<void>;
   edit(id: string, patch: Partial<Pick<Plant, 'text' | 'priority' | 'bedId'>>): Promise<void>;
   remove(id: string): Promise<void>;
-  addBed(name: string): Promise<Bed>;
+  addBed(name: string, color?: BedColorKey): Promise<Bed>;
   renameBed(id: string, name: string): Promise<void>;
   recolorBed(id: string, color: BedColorKey): Promise<void>;
   toggleFold(id: string): Promise<void>;
   reorderBeds(ids: string[]): Promise<void>;
-  removeBed(id: string): Promise<void>;
+  removeBed(id: string, opts?: { moveTo?: string; deleteThoughts?: boolean }): Promise<void>;
   setAnalytics(on: boolean): Promise<void>;
   plantsInBed(bedId: string): Plant[];
 }
@@ -44,6 +45,8 @@ export function createGardenStore(repos: Repos) {
       ]);
       set({ beds, plants, bloomedToday, ready: true });
     };
+
+    const watering = new Set<string>();
 
     return {
       beds: [],
@@ -71,10 +74,27 @@ export function createGardenStore(repos: Repos) {
       },
 
       async water(id) {
+        if (watering.has(id)) return;
         const p = get().plants.find((x) => x.id === id);
-        await repos.plants.water(id);
-        await refresh();
-        track('plant_watered', { water_count: (p?.waterCount ?? 0) + 1 });
+        if (!p || p.bloomedAt) return;
+        watering.add(id);
+        try {
+          await repos.plants.water(id);
+          const count = p.waterCount + 1;
+          const auto = count >= BLOOM_AT_WATERS;
+          if (auto) await repos.plants.bloom(id);
+          await refresh();
+          track('plant_watered', { water_count: count });
+          if (auto) {
+            track('plant_bloomed', {
+              water_count: count,
+              age_days: Math.max(0, differenceInCalendarDays(new Date(), new Date(p.createdAt))),
+              auto: true,
+            });
+          }
+        } finally {
+          watering.delete(id);
+        }
       },
 
       async bloom(id) {
@@ -106,8 +126,8 @@ export function createGardenStore(repos: Repos) {
         track('plant_deleted', {});
       },
 
-      async addBed(name) {
-        const bed = await repos.beds.create(name);
+      async addBed(name, color) {
+        const bed = await repos.beds.create(name, color);
         await refresh();
         track('bed_created', {});
         return bed;
@@ -135,7 +155,16 @@ export function createGardenStore(repos: Repos) {
         await refresh();
       },
 
-      async removeBed(id) {
+      async removeBed(id, opts) {
+        const bed = get().beds.find((b) => b.id === id);
+        if (!bed || bed.isIdeas) return;
+        if (get().beds.filter((b) => !b.isIdeas).length <= 1) return;
+        const inBed = get().plants.filter((p) => p.bedId === id);
+        if (opts?.moveTo) {
+          for (const p of inBed) await repos.plants.edit(p.id, { bedId: opts.moveTo });
+        } else if (opts?.deleteThoughts) {
+          for (const p of inBed) await repos.plants.remove(p.id);
+        }
         await repos.beds.remove(id);
         if (get().lastBedId === id) set({ lastBedId: null });
         await refresh();

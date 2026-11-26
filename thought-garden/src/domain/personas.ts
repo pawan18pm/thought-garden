@@ -5,6 +5,7 @@ const BEDS: Record<Persona, string[]> = {
   jobPrep: ['Interview', 'DSA', 'Resume', 'Portfolio'],
   professional: ['Work', 'Upskilling', 'Side project'],
   builder: ['Ideas to explore', 'Build', 'Learn', 'Launch'],
+  other: [],
 };
 
 export function suggestedBeds(p: Persona): string[] {
@@ -12,8 +13,9 @@ export function suggestedBeds(p: Persona): string[] {
 }
 
 export const PERSONA_LABELS: Record<Persona, string> = {
-  student: '🎓 Student',
-  jobPrep: '💼 Preparing for a job',
-  professional: '🧑‍💻 Working professional',
-  builder: '💡 Builder / has ideas',
+  student: 'Studies',
+  jobPrep: 'A new job',
+  professional: 'My work',
+  builder: 'My own ideas',
+  other: 'Something else',
 };

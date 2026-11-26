@@ -58,10 +58,72 @@ describe('garden store', () => {
   it('removeBed re-homes plants into Ideas', async () => {
     const { store, ideas } = await setup();
     const a = await store.getState().addBed('A');
+    await store.getState().addBed('B');
     await store.getState().plant('x', a.id);
     await store.getState().removeBed(a.id);
     expect(store.getState().beds.find((b) => b.id === a.id)).toBeUndefined();
     expect(store.getState().plants[0].bedId).toBe(ideas.id);
+  });
+
+  it('third water auto-blooms', async () => {
+    const { store, repos } = await setup();
+    const p = (await store.getState().plant('t'))!;
+    await repos.plants.water(p.id);
+    await repos.plants.water(p.id);
+    await store.getState().load();
+    await store.getState().water(p.id);
+    expect(store.getState().plants).toHaveLength(0);
+    const b = store.getState().bloomedToday[0];
+    expect(b.id).toBe(p.id);
+    expect(b.bloomedAt).toBeTruthy();
+    expect(b.waterCount).toBe(3);
+    expect(captures.find((c) => c.name === 'plant_bloomed')?.props).toMatchObject({ auto: true });
+  });
+
+  it('concurrent water blooms once', async () => {
+    const { store, repos } = await setup();
+    const p = (await store.getState().plant('t'))!;
+    await repos.plants.water(p.id);
+    await repos.plants.water(p.id);
+    await store.getState().load();
+    await Promise.all([store.getState().water(p.id), store.getState().water(p.id)]);
+    expect(captures.filter((c) => c.name === 'plant_bloomed')).toHaveLength(1);
+    expect(store.getState().bloomedToday).toHaveLength(1);
+    expect(store.getState().bloomedToday[0].waterCount).toBe(3);
+  });
+
+  it('removeBed refuses last bed', async () => {
+    const { store } = await setup();
+    const a = await store.getState().addBed('A');
+    await store.getState().removeBed(a.id);
+    expect(store.getState().beds.find((b) => b.id === a.id)).toBeDefined();
+  });
+
+  it('removeBed moveTo keeps thoughts', async () => {
+    const { store } = await setup();
+    const a = await store.getState().addBed('A');
+    const b = await store.getState().addBed('B');
+    await store.getState().plant('x', a.id);
+    await store.getState().removeBed(a.id, { moveTo: b.id });
+    expect(store.getState().beds.find((x) => x.id === a.id)).toBeUndefined();
+    expect(store.getState().plantsInBed(b.id)).toHaveLength(1);
+  });
+
+  it('removeBed deleteThoughts removes plants', async () => {
+    const { store } = await setup();
+    const a = await store.getState().addBed('A');
+    await store.getState().addBed('B');
+    await store.getState().plant('x', a.id);
+    await store.getState().removeBed(a.id, { deleteThoughts: true });
+    expect(store.getState().plants).toHaveLength(0);
+    expect(store.getState().beds.find((x) => x.id === a.id)).toBeUndefined();
+  });
+
+  it('addBed with colour stores it', async () => {
+    const { store } = await setup();
+    const a = await store.getState().addBed('A', 'pink');
+    expect(a.color).toBe('pink');
+    expect(store.getState().beds.find((b) => b.id === a.id)?.color).toBe('pink');
   });
 
   it('setAnalytics persists the setting', async () => {

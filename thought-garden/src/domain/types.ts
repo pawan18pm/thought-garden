@@ -2,7 +2,7 @@ import type { BedColorKey } from '@/ui/tokens';
 
 export type Priority = 1 | 2 | 3 | null;
 export type Stage = 'seed' | 'watered' | 'growing' | 'bloom';
-export type Persona = 'student' | 'jobPrep' | 'professional' | 'builder';
+export type Persona = 'student' | 'jobPrep' | 'professional' | 'builder' | 'other';
 
 export interface Bed {
   id: string;

@@ -48,7 +48,7 @@ const continueBtn = () => screen.getByLabelText('Continue');
 describe('onboarding', () => {
   it('persona jobPrep shows its suggested chips', async () => {
     await render(<Persona />);
-    await fireEvent.press(screen.getByLabelText('💼 Preparing for a job'));
+    await fireEvent.press(screen.getByLabelText('A new job'));
     await render(<Beds />);
     for (const n of ['Interview', 'DSA', 'Resume', 'Portfolio']) expect(screen.getByLabelText(n)).toBeTruthy();
   });

@@ -61,10 +61,10 @@ export function createRepos(db: Db, newId: () => string, now: () => string) {
       const rows = await db.all<BedRow>('SELECT * FROM beds ORDER BY is_ideas ASC, position ASC');
       return rows.map(toBed);
     },
-    async create(name: string): Promise<Bed> {
+    async create(name: string, colorKey?: BedColorKey): Promise<Bed> {
       const user = await db.all<BedRow>('SELECT * FROM beds WHERE is_ideas = 0');
       const position = user.length ? Math.max(...user.map((b) => b.position)) + 1 : 0;
-      const color = nextBedColor(user.map((b) => b.color as BedColorKey));
+      const color = colorKey ?? nextBedColor(user.map((b) => b.color as BedColorKey));
       const bed: Bed = { id: newId(), name, color, position, isIdeas: false, folded: false, createdAt: now() };
       await db.run(
         'INSERT INTO beds (id, name, color, position, is_ideas, folded, created_at) VALUES (?, ?, ?, ?, 0, 0, ?)',
