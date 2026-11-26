@@ -257,7 +257,7 @@ export function createRepos(db: Db, newId: () => string, now: () => string) {
     },
   };
 
-  /** Dev-only: wipes every table. */
+  /** Wipes every table (used by Settings > Reset all data). Not transactional: the Db abstraction has no transaction API; a failure part-way leaves a partial wipe, and retrying finishes it. */
   async function resetAll(): Promise<void> {
     for (const t of ['waterings', 'plants', 'beds', 'settings']) await db.run(`DELETE FROM ${t}`);
   }

@@ -198,11 +198,22 @@ function ResetBlock() {
   const router = useRouter();
   const load = useGarden((s) => s.load);
   const [ask, setAsk] = useState(false);
+  const [failed, setFailed] = useState(false);
   const doReset = async () => {
-    await disableReminder();
-    await repos.resetAll();
-    await repos.beds.ensureIdeas();
-    await load();
+    setFailed(false);
+    try {
+      await disableReminder();
+      await repos.resetAll();
+    } catch {
+      setFailed(true);
+      return;
+    }
+    try {
+      await repos.beds.ensureIdeas();
+      await load();
+    } catch {
+      /* data is wiped; onboarding will reload the store */
+    }
     useOnboardingDraft.getState().reset();
     useOnboardingState.getState().setDone(false);
     router.replace('/onboarding/welcome');
@@ -217,6 +228,7 @@ function ResetBlock() {
   return (
     <View style={styles.confirm} accessibilityRole="alert" accessibilityLabel="Confirm reset">
       <Text style={styles.confirmText}>Delete every bed, thought and bloom? This can't be undone.</Text>
+      {failed && <Text style={styles.errorText}>Couldn't reset. Try again.</Text>}
       <View style={styles.confirmRow}>
         <Pressable accessibilityRole="button" accessibilityLabel="Keep my garden" onPress={() => setAsk(false)} style={[styles.confirmBtn, styles.keepBtn]}>
           <Text style={[styles.confirmBtnText, { color: colors.ink }]}>Keep my garden</Text>
@@ -306,6 +318,7 @@ const styles = StyleSheet.create({
   resetText: { fontFamily: fonts.bodyBold, fontSize: 15, color: DANGER },
   confirm: { padding: 14, backgroundColor: '#FFF6F5', borderWidth: 2, borderColor: DANGER, borderRadius: 18 },
   confirmText: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
+  errorText: { marginTop: 6, fontFamily: fonts.bodySemi, fontSize: 13, color: DANGER },
   confirmRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   confirmBtn: { flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderRadius: 14 },
   keepBtn: { backgroundColor: colors.bg, borderColor: colors.ink },

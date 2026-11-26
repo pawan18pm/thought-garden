@@ -60,3 +60,38 @@ Deferred minors:
 - PlantArt's own soil ellipse slightly overlaps the calendar tile soil strip (check on device).
 - Card goes stale if the app stays in the foreground across midnight with no action (refreshes on next foreground); Garden tab refreshes on focus only.
 - One redundant reload after a post-midnight bloom + foreground (harmless).
+
+## v6 (2026-11-26)
+Spec: docs/superpowers/specs/2026-11-26-v6-thought-garden-design.md. App renamed Mindbed -> Thought Garden; onboarding, Plant, Garden and Settings rebuilt to the V6App prototype. No schema change.
+
+### Builder's calls (from the spec)
+- The legacy hidden Ideas bed stays as an internal fallback but is not shown when empty; the quick-plant box always targets a chosen user bed (the Ideas chip is not offered).
+- Priority stays in the data model and the thought detail sheet (tap a thought), but is not shown on rows or in planting.
+- Onboarding persona cards map to existing personas: Studies = student, A new job = jobPrep, My work = professional, My own ideas = builder; "Something else" = no suggested beds.
+- Water/Bloom rule: auto-bloom on the 3rd water; Bloom now after >=1 water. Art: 0 seed, 1 sprout, 2 growing, bloom = flower in bed colour.
+
+### Controller rulings
+- Reference visuals come from the local V6App-reference.html (the board is private).
+- `npx expo lint` is skipped: eslint is not a project dependency and installing it rewrites package.json. Gate = `npx tsc --noEmit` + `npx jest`.
+- Task 3 commit trailer names Haiku 5.5 (the model that wrote it); left as is.
+- QuickPlantBox targets user beds only (no Ideas chip).
+- Settings Reset is shown in all builds and resets in-app (no DevSettings.reload): wipes data, re-ensures Ideas, reloads the store, clears the onboarding draft, sets onboarding not done, routes to /onboarding/welcome. If the wipe fails the user stays on Settings with "Couldn't reset. Try again."; if only the reload fails, the reset still completes.
+- `resetAll` is not transactional (Db has no transaction API); a retry finishes a partial wipe.
+
+### Deferred minors
+- Task 6: busy reset right after push, a double-tap may push first-plant twice.
+- Task 5: green shadow shows on the disabled Plant button; old bed name flashes briefly after blur.
+- Task 7: growing-vs-sprout on past days uses watering count; extra queries per month load; NextUpCard lacks an explicit a11y label; selection doesn't follow midnight; a failed day load keeps the previous dropdown open under the new selection.
+- Task 8: Settings paddingTop hardcoded 56 (no safe-area).
+
+### On-device checklist (iPhone, Expo Go)
+Run `npx expo start --lan --port 8082`, then:
+1. Fresh install -> choose "Something else".
+2. Add 2 beds.
+3. Write the first thought -> Not now (reminder).
+4. Plant 2 thoughts.
+5. Water x3 on one (it auto-blooms).
+6. "Bloom now" on another.
+7. Garden today tile shows the flower; the day dropdown groups Bloomed / Watered / Planted correctly.
+8. Settings: rename a bed -> the Plant tab shows the new name.
+9. Settings: Reset all data -> confirm -> lands on the onboarding welcome screen.

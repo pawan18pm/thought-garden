@@ -82,3 +82,26 @@ it('Reset asks to confirm before wiping', async () => {
   expect(useOnboardingState.getState().done).toBe(false);
   expect(useOnboardingDraft.getState().persona).toBeNull();
 });
+
+it('Reset failure keeps the user on Settings and shows an error', async () => {
+  mockGetPerm.mockResolvedValue({ status: 'granted' });
+  mockReplace.mockClear();
+  mockResetAll.mockRejectedValueOnce(new Error('boom'));
+  await render(<Settings />);
+  await fireEvent.press(screen.getByLabelText('Reset all data'));
+  await fireEvent.press(screen.getByLabelText('Reset all data and delete everything'));
+  await waitFor(() => expect(screen.getByText("Couldn't reset. Try again.")).toBeTruthy());
+  expect(mockReplace).not.toHaveBeenCalled();
+});
+
+it('Reset still goes to onboarding if the store reload throws after the wipe', async () => {
+  mockGetPerm.mockResolvedValue({ status: 'granted' });
+  mockReplace.mockClear();
+  mockLoad.mockRejectedValueOnce(new Error('reload'));
+  useOnboardingState.getState().setDone(true);
+  await render(<Settings />);
+  await fireEvent.press(screen.getByLabelText('Reset all data'));
+  await fireEvent.press(screen.getByLabelText('Reset all data and delete everything'));
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/onboarding/welcome'));
+  expect(useOnboardingState.getState().done).toBe(false);
+});
