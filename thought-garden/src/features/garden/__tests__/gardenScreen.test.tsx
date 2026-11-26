@@ -51,6 +51,19 @@ beforeAll(() => {
 });
 afterAll(() => jest.useRealTimers());
 
+// Warm-up: the first render of the screen pays for loading its modules (calendar, SVG art).
+// Doing it once here keeps that cost out of the first test's time budget, so results don't
+// depend on how loaded the machine is.
+beforeAll(async () => {
+  mockRange.mockResolvedValue({});
+  mockDetailRange.mockResolvedValue(empty);
+  mockDetail.mockResolvedValue(empty);
+  mockState.beds = [bedA, bedB, ideas];
+  const view = await render(<Garden />);
+  await screen.findByText('Today · Thursday, 26 November');
+  await view.unmount();
+}, 30000);
+
 beforeEach(() => {
   mockTrack.mockReset();
   mockPush.mockReset();
