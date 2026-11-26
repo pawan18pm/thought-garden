@@ -1,35 +1,23 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useGarden } from '@/store/AppProvider';
-import { ChunkyButton } from '@/ui/ChunkyButton';
-import { BED_COLOR_ORDER, bedColors, border, colors, fonts, type BedColorKey } from '@/ui/tokens';
+import { BED_COLOR_ORDER, bedColors, colors, fonts, type BedColorKey } from '@/ui/tokens';
 import type { Bed } from '@/domain/types';
 
 const MAX_NAME = 40;
+const MAX_BEDS = 6;
 const validName = (s: string): string | null => {
   const t = s.trim();
   return t.length > 0 && t.length <= MAX_NAME ? t : null;
 };
+const nextColor = (c: string): BedColorKey => {
+  const i = BED_COLOR_ORDER.indexOf(c as BedColorKey);
+  return BED_COLOR_ORDER[(i + 1) % BED_COLOR_ORDER.length];
+};
 
-function IconButton({ label, glyph, disabled, onPress }: { label: string; glyph: string; disabled?: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={[styles.iconBtn, disabled && { opacity: 0.35 }]}
-    >
-      <Text style={styles.iconGlyph}>{glyph}</Text>
-    </Pressable>
-  );
-}
-
-function BedRow({ bed, index, count, ids }: { bed: Bed; index: number; count: number; ids: string[] }) {
+function BedRow({ bed, index, ids, count, last }: { bed: Bed; index: number; ids: string[]; count: number; last: boolean }) {
   const renameBed = useGarden((s) => s.renameBed);
   const recolorBed = useGarden((s) => s.recolorBed);
-  const removeBed = useGarden((s) => s.removeBed);
   const reorderBeds = useGarden((s) => s.reorderBeds);
   const [name, setName] = useState(bed.name);
   const saved = useRef(bed.name);
@@ -52,125 +40,104 @@ function BedRow({ bed, index, count, ids }: { bed: Bed; index: number; count: nu
     }
   };
 
-  const move = (delta: number) => {
+  const moveUp = () => {
     const next = [...ids];
-    const j = index + delta;
-    [next[index], next[j]] = [next[j], next[index]];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
     void reorderBeds(next);
   };
 
-  const confirmDelete = () =>
-    Alert.alert(`Delete ${bed.name}?`, 'Its plants will move to Ideas', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => void removeBed(bed.id) },
-    ]);
-
   return (
-    <View style={[styles.row, { backgroundColor: bedColors[bed.color as BedColorKey] ?? '#FFFFFF' }]}>
-      <View style={styles.rowTop}>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          onEndEditing={commitName}
-          onBlur={commitName}
-          onSubmitEditing={commitName}
-          maxLength={MAX_NAME}
-          accessibilityLabel={`Rename ${bed.name}`}
-          returnKeyType="done"
-        />
-        <IconButton label={`Move ${bed.name} up`} glyph="↑" disabled={index === 0} onPress={() => move(-1)} />
-        <IconButton label={`Move ${bed.name} down`} glyph="↓" disabled={index === count - 1} onPress={() => move(1)} />
-        <IconButton label={`Delete ${bed.name}`} glyph="🗑" onPress={confirmDelete} />
-      </View>
-      <View style={styles.swatches}>
-        {BED_COLOR_ORDER.map((c) => (
-          <Pressable
-            key={c}
-            accessibilityRole="button"
-            accessibilityLabel={`${bed.name} color ${c}`}
-            accessibilityState={{ selected: bed.color === c }}
-            onPress={() => void recolorBed(bed.id, c)}
-            style={styles.swatchHit}
-          >
-            <View style={[styles.swatch, { backgroundColor: bedColors[c] }, bed.color === c && styles.swatchOn]} />
-          </Pressable>
-        ))}
-      </View>
+    <View style={[styles.row, !last && styles.rowLine]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Move ${bed.name} up`}
+        accessibilityState={{ disabled: index === 0 }}
+        disabled={index === 0}
+        onPress={moveUp}
+        style={[styles.up, index === 0 && { opacity: 0.3 }]}
+      >
+        <Text style={styles.upGlyph}>↑</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Change color of ${bed.name}`}
+        onPress={() => void recolorBed(bed.id, nextColor(bed.color))}
+        style={[styles.dot, { backgroundColor: bedColors[bed.color as BedColorKey] ?? '#FFFFFF' }]}
+      />
+      <TextInput
+        style={styles.input}
+        value={name}
+        onChangeText={setName}
+        onEndEditing={commitName}
+        onBlur={commitName}
+        onSubmitEditing={commitName}
+        maxLength={MAX_NAME}
+        accessibilityLabel={`Rename ${bed.name}`}
+        returnKeyType="done"
+      />
+      <Text style={styles.count}>{count} {count === 1 ? 'thought' : 'thoughts'}</Text>
     </View>
   );
 }
 
 export function ManageBeds() {
   const beds = useGarden((s) => s.beds);
-  const addBed = useGarden((s) => s.addBed);
-  const [newName, setNewName] = useState('');
+  const plants = useGarden((s) => s.plants) ?? [];
   const userBeds = beds.filter((b) => !b.isIdeas);
-  const ideas = beds.find((b) => b.isIdeas);
   const ids = userBeds.map((b) => b.id);
-  const clean = validName(newName);
-
-  const add = async () => {
-    if (!clean) return;
-    await addBed(clean);
-    setNewName('');
-  };
 
   return (
-    <View style={styles.wrap}>
-      {userBeds.map((b, i) => (
-        <BedRow key={b.id} bed={b} index={i} count={userBeds.length} ids={ids} />
-      ))}
-      {ideas && (
-        <View style={[styles.row, { backgroundColor: colors.ideasBed }]}>
-          <View style={styles.rowTop}>
-            <Text style={styles.ideasName}>🔒 {ideas.name}</Text>
-            <Text style={styles.note}>Always here</Text>
-          </View>
-        </View>
-      )}
-      <View style={styles.addRow}>
-        <TextInput
-          style={styles.input}
-          value={newName}
-          onChangeText={setNewName}
-          maxLength={MAX_NAME}
-          placeholder="New bed name"
-          placeholderTextColor={colors.muted}
-          accessibilityLabel="New bed name"
-          onSubmitEditing={add}
-          returnKeyType="done"
-        />
-        <ChunkyButton label="Add bed" onPress={add} disabled={!clean} />
+    <View style={styles.card} accessibilityLabel="Manage beds">
+      <View style={styles.head}>
+        <Text style={styles.title} accessibilityRole="header">Manage beds</Text>
+        <Text style={styles.meta}>{userBeds.length} of {MAX_BEDS}</Text>
       </View>
-      {userBeds.length >= 6 && <Text style={styles.note}>Gardens grow best with a few beds 🌱</Text>}
+      {userBeds.map((b, i) => (
+        <BedRow
+          key={b.id}
+          bed={b}
+          index={i}
+          ids={ids}
+          last={i === userBeds.length - 1}
+          count={plants.filter((p) => p.bedId === b.id && !p.bloomedAt).length}
+        />
+      ))}
+      <Text style={styles.hint}>Add or remove beds with Edit beds on the Plant tab.</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 10 },
-  row: { borderWidth: border, borderColor: colors.ink, borderRadius: 16, padding: 10, gap: 6 },
-  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  card: {
+    padding: 14,
+    backgroundColor: colors.bg,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    borderRadius: 22,
+    // Green offset shadow (0 5px 0 #8ACB72); iOS-only, the app targets iOS.
+    shadowColor: '#8ACB72',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  title: { fontFamily: fonts.titleXBold, fontSize: 20, color: colors.ink },
+  meta: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.muted },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52 },
+  rowLine: { borderBottomWidth: 1.5, borderBottomColor: colors.line },
+  up: { width: 32, height: 44, alignItems: 'center', justifyContent: 'center' },
+  upGlyph: { fontSize: 16, color: colors.muted },
+  dot: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: colors.ink },
   input: {
     flex: 1,
-    minHeight: 44,
-    paddingHorizontal: 12,
-    fontFamily: fonts.bodySemi,
-    fontSize: 16,
+    minWidth: 0,
+    height: 40,
+    paddingHorizontal: 6,
+    fontFamily: fonts.titleBold,
+    fontSize: 17,
     color: colors.ink,
-    backgroundColor: '#FFFFFF',
-    borderWidth: border,
-    borderColor: colors.ink,
-    borderRadius: 12,
   },
-  addRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  iconGlyph: { fontSize: 20, color: colors.ink },
-  swatches: { flexDirection: 'row' },
-  swatchHit: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, borderColor: colors.ink },
-  swatchOn: { borderWidth: 3 },
-  ideasName: { flex: 1, fontFamily: fonts.bodySemi, fontSize: 16, color: colors.ink, minHeight: 28 },
-  note: { fontFamily: fonts.body, fontSize: 14, color: colors.muted },
+  count: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted },
+  hint: { marginTop: 8, fontFamily: fonts.body, fontSize: 12, color: colors.muted },
 });

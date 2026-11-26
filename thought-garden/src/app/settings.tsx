@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Alert, AppState, DevSettings, Linking, Platform, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { AppState, DevSettings, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -14,6 +14,11 @@ import type { Persona } from '@/domain/types';
 import { disableReminder, enableReminder } from '@/notifications/reminders';
 
 const DEFAULT_TIME = '21:00';
+const PRESETS = [
+  { id: 'am', label: 'Morning', shown: '8:00', time: '08:00' },
+  { id: 'pm', label: 'Evening', shown: '9:00', time: '21:00' },
+];
+const DANGER = '#B3261E';
 const pad = (n: number) => String(n).padStart(2, '0');
 const toHHmm = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const toDate = (t: string) => {
@@ -22,15 +27,6 @@ const toDate = (t: string) => {
   d.setHours(h, m, 0, 0);
   return d;
 };
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.heading} accessibilityRole="header">{title}</Text>
-      {children}
-    </View>
-  );
-}
 
 function ReminderSection() {
   const repos = useRepos();
@@ -67,9 +63,7 @@ function ReminderSection() {
     }
   };
 
-  const changeTime = async (d?: Date) => {
-    if (!d) return;
-    const t = toHHmm(d);
+  const applyTime = async (t: string) => {
     setTime(t);
     if (enabled) {
       setEnabled(await enableReminder(t));
@@ -77,10 +71,14 @@ function ReminderSection() {
     } else await repos.settings.set('reminder_time', t);
   };
 
+  const changeTime = async (d?: Date) => {
+    if (d) await applyTime(toHHmm(d));
+  };
+
   return (
-    <Section title="Daily reminder">
-      <View style={styles.row}>
-        <Text style={styles.label}>Remind me daily</Text>
+    <View style={styles.card}>
+      <View style={styles.head}>
+        <Text style={styles.h2} accessibilityRole="header">Daily reminder</Text>
         <Switch
           value={enabled}
           onValueChange={toggle}
@@ -88,95 +86,142 @@ function ReminderSection() {
           trackColor={{ true: colors.leaf, false: undefined }}
         />
       </View>
-      <View style={styles.row}>
-        <Text style={styles.label}>Reminder time</Text>
-        <DateTimePicker
-          value={toDate(time)}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'compact' : 'default'}
-          onChange={(_e, d) => void changeTime(d)}
-        />
-      </View>
+      {enabled && (
+        <View style={styles.times}>
+          {PRESETS.map((p) => {
+            const on = time === p.time;
+            return (
+              <Pressable
+                key={p.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                onPress={() => void applyTime(p.time)}
+                style={[styles.timeBtn, on && styles.timeBtnOn]}
+              >
+                <Text style={styles.timeText}>{`${p.label} ${p.shown}`}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+      {enabled && (
+        <View style={styles.customRow}>
+          <Text style={styles.label}>Custom time</Text>
+          <DateTimePicker
+            value={toDate(time)}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'compact' : 'default'}
+            onChange={(_e, d) => void changeTime(d)}
+          />
+        </View>
+      )}
       {denied && (
         <View style={styles.gap}>
           <Text style={styles.note}>Notifications are off for Thought Garden. Turn them on in iOS Settings.</Text>
           <ChunkyButton label="Open iOS Settings" onPress={() => void Linking.openSettings()} />
         </View>
       )}
-    </Section>
+    </View>
   );
 }
 
-function PersonaSection() {
+function ListRow({ title, value, onPress, last, children }: { title: string; value: string; onPress?: () => void; last?: boolean; children?: ReactNode }) {
+  return (
+    <View style={last ? undefined : styles.rowLine}>
+      <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={styles.listRow}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={styles.rowValue}>{value} ›</Text>
+      </Pressable>
+      {children}
+    </View>
+  );
+}
+
+function ListRows() {
   const repos = useRepos();
+  const setAnalytics = useGarden((s) => s.setAnalytics);
   const [persona, setPersona] = useState<string | null>(null);
+  const [analytics, setAnalyticsOn] = useState(true);
+  const [open, setOpen] = useState<'who' | 'privacy' | null>(null);
   useEffect(() => {
     void repos.settings.get('persona').then(setPersona);
+    void repos.settings.get('analytics_enabled').then((v) => setAnalyticsOn(v !== '0'));
   }, [repos]);
   const pick = async (p: Persona) => {
     setPersona(p);
     await repos.settings.set('persona', p);
   };
+  const version = Constants.expoConfig?.version ?? '1.0.0';
+  const toggle = (k: 'who' | 'privacy') => setOpen((o) => (o === k ? null : k));
   return (
-    <Section title="Who are you">
-      <View style={styles.chips}>
-        {(Object.keys(PERSONA_LABELS) as Persona[]).map((p) => (
-          <Chip key={p} label={PERSONA_LABELS[p]} accessibilityLabel={PERSONA_LABELS[p]} selected={persona === p} onPress={() => void pick(p)} />
-        ))}
-      </View>
-      <Text style={styles.note}>This only changes the suggestions you see next time.</Text>
-    </Section>
+    <View style={styles.listCard}>
+      <ListRow title="Who are you" value={(persona && PERSONA_LABELS[persona as Persona]) || 'Not set'} onPress={() => toggle('who')}>
+        {open === 'who' && (
+          <View style={styles.panel}>
+            <View style={styles.chips}>
+              {(Object.keys(PERSONA_LABELS) as Persona[]).map((p) => (
+                <Chip key={p} label={PERSONA_LABELS[p]} accessibilityLabel={PERSONA_LABELS[p]} selected={persona === p} onPress={() => void pick(p)} />
+              ))}
+            </View>
+            <Text style={styles.note}>This only changes the suggestions you see next time.</Text>
+          </View>
+        )}
+      </ListRow>
+      <ListRow title="Privacy" value="Stays on this phone" onPress={() => toggle('privacy')}>
+        {open === 'privacy' && (
+          <View style={styles.panel}>
+            <View style={styles.customRow}>
+              <Text style={styles.label}>Share anonymous usage data</Text>
+              <Switch
+                value={analytics}
+                onValueChange={(v) => {
+                  setAnalyticsOn(v);
+                  void setAnalytics(v);
+                }}
+                accessibilityLabel="Share anonymous usage data"
+                trackColor={{ true: colors.leaf, false: undefined }}
+              />
+            </View>
+            <Text style={styles.note}>Only actions like 'planted' or 'watered', never what you write.</Text>
+          </View>
+        )}
+      </ListRow>
+      <ListRow title="About & feedback" value={`v${version}`} last />
+    </View>
   );
 }
 
-function PrivacySection() {
+function ResetBlock() {
   const repos = useRepos();
-  const setAnalytics = useGarden((s) => s.setAnalytics);
-  const [on, setOn] = useState(true);
-  useEffect(() => {
-    void repos.settings.get('analytics_enabled').then((v) => setOn(v !== '0'));
-  }, [repos]);
+  const [ask, setAsk] = useState(false);
+  const doReset = async () => {
+    await repos.resetAll();
+    DevSettings.reload();
+  };
+  if (!ask) {
+    return (
+      <Pressable accessibilityRole="button" accessibilityLabel="Reset all data" onPress={() => setAsk(true)} style={styles.resetBtn}>
+        <Text style={styles.resetText}>Reset all data</Text>
+      </Pressable>
+    );
+  }
   return (
-    <Section title="Privacy">
-      <View style={styles.row}>
-        <Text style={styles.label}>Share anonymous usage data</Text>
-        <Switch
-          value={on}
-          onValueChange={(v) => {
-            setOn(v);
-            void setAnalytics(v);
-          }}
-          accessibilityLabel="Share anonymous usage data"
-          trackColor={{ true: colors.leaf, false: undefined }}
-        />
+    <View style={styles.confirm} accessibilityRole="alert" accessibilityLabel="Confirm reset">
+      <Text style={styles.confirmText}>Delete every bed, thought and bloom? This can't be undone.</Text>
+      <View style={styles.confirmRow}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Keep my garden" onPress={() => setAsk(false)} style={[styles.confirmBtn, styles.keepBtn]}>
+          <Text style={[styles.confirmBtnText, { color: colors.ink }]}>Keep my garden</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Reset" onPress={() => void doReset()} style={[styles.confirmBtn, styles.doBtn]}>
+          <Text style={[styles.confirmBtnText, { color: '#FFFFFF' }]}>Reset</Text>
+        </Pressable>
       </View>
-      <Text style={styles.note}>Only actions like 'planted' or 'watered', never what you write.</Text>
-    </Section>
-  );
-}
-
-function DevSection() {
-  const repos = useRepos();
-  const reset = () =>
-    Alert.alert('Reset all data?', 'This deletes every plant, bed and setting, then restarts the app.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reset',
-        style: 'destructive',
-        onPress: async () => {
-          await repos.resetAll();
-          DevSettings.reload();
-        },
-      },
-    ]);
-  return (
-    <Section title="Developer">
-      <ChunkyButton label="Reset all data" onPress={reset} />
-    </Section>
+    </View>
   );
 }
 
 export default function Settings() {
+  const router = useRouter();
   return (
     <ScrollView
       style={styles.container}
@@ -185,29 +230,78 @@ export default function Settings() {
       keyboardDismissMode="on-drag"
       automaticallyAdjustKeyboardInsets
     >
-      <Stack.Screen options={{ headerShown: true, title: 'Settings' }} />
-      <ReminderSection />
-      <Section title="Manage beds">
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.backWrap}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} style={styles.back}>
+          <Text style={styles.backText}>‹ Back</Text>
+        </Pressable>
+      </View>
+      <Text style={styles.title} accessibilityRole="header">Settings</Text>
+      <View style={[styles.block, { marginTop: 24 }]}>
         <ManageBeds />
-      </Section>
-      <PersonaSection />
-      <PrivacySection />
-      <Section title="About">
-        <Text style={styles.label}>Thought Garden v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
-      </Section>
-      {__DEV__ && <DevSection />}
+      </View>
+      <View style={[styles.block, { marginTop: 18 }]}>
+        <ReminderSection />
+      </View>
+      <View style={[styles.block, { marginTop: 18 }]}>
+        <ListRows />
+      </View>
+      <Text style={styles.version}>Thought Garden v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+      {__DEV__ && (
+        <View style={[styles.block, { marginTop: 22 }]}>
+          <ResetBlock />
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.paper },
-  content: { padding: 20, gap: 28, paddingBottom: 60 },
-  section: { gap: 10 },
-  heading: { fontFamily: fonts.titleBold, fontSize: 20, color: colors.ink },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, gap: 12 },
-  label: { flexShrink: 1, fontFamily: fonts.bodySemi, fontSize: 16, color: colors.ink },
-  note: { fontFamily: fonts.body, fontSize: 14, color: colors.muted },
-  gap: { gap: 10 },
+  container: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingTop: 56, paddingBottom: 60 },
+  backWrap: { paddingHorizontal: 20 },
+  back: {
+    alignSelf: 'flex-start',
+    height: 44,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    backgroundColor: colors.bg,
+    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  backText: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.ink },
+  title: { marginTop: 18, marginHorizontal: 20, fontFamily: fonts.titleXBold, fontSize: 44, lineHeight: 44, color: colors.ink },
+  block: { marginHorizontal: 20 },
+  card: { padding: 14, borderWidth: 2, borderColor: colors.ink, borderRadius: 22, backgroundColor: colors.bg },
+  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  h2: { fontFamily: fonts.titleXBold, fontSize: 20, color: colors.ink },
+  times: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  timeBtn: { flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, borderWidth: 2, borderColor: colors.ink, borderRadius: 14 },
+  timeBtnOn: { backgroundColor: '#DDF2D1' },
+  timeText: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
+  customRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, gap: 12, marginTop: 6 },
+  label: { flexShrink: 1, fontFamily: fonts.bodySemi, fontSize: 15, color: colors.ink },
+  note: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
+  gap: { gap: 10, marginTop: 10 },
+  listCard: { borderWidth: 2, borderColor: colors.ink, borderRadius: 22, overflow: 'hidden', backgroundColor: colors.bg },
+  rowLine: { borderBottomWidth: 1.5, borderBottomColor: colors.line },
+  listRow: { height: 60, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  rowTitle: { fontFamily: fonts.bodySemi, fontSize: 16, color: colors.ink },
+  rowValue: { flexShrink: 1, fontFamily: fonts.body, fontSize: 14, color: colors.muted },
+  panel: { paddingHorizontal: 16, paddingBottom: 14, gap: 10 },
   chips: { gap: 10, alignItems: 'flex-start' },
+  version: { marginTop: 14, textAlign: 'center', fontFamily: fonts.body, fontSize: 12, color: colors.muted },
+  resetBtn: { height: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, borderWidth: 2, borderColor: DANGER, borderRadius: 16 },
+  resetText: { fontFamily: fonts.bodyBold, fontSize: 15, color: DANGER },
+  confirm: { padding: 14, backgroundColor: '#FFF6F5', borderWidth: 2, borderColor: DANGER, borderRadius: 18 },
+  confirmText: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
+  confirmRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  confirmBtn: { flex: 1, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderRadius: 14 },
+  keepBtn: { backgroundColor: colors.bg, borderColor: colors.ink },
+  doBtn: { backgroundColor: DANGER, borderColor: DANGER },
+  confirmBtnText: { fontFamily: fonts.bodyBold, fontSize: 14 },
 });

@@ -26,45 +26,44 @@ beforeEach(() => {
     renameBed,
     recolorBed: jest.fn(),
     addBed,
+    plants: [],
   });
 });
 
+const recolorBed = jest.fn();
+
 describe('ManageBeds', () => {
-  it('lists Ideas locked with no actions; Up on first bed is disabled', async () => {
+  it('shows the bed count, thought counts and no Ideas bed; Up on first bed is disabled', async () => {
+    mockState.recolorBed = recolorBed;
+    mockState.plants = [
+      { id: 'p1', bedId: 'a', bloomedAt: null },
+      { id: 'p2', bedId: 'a', bloomedAt: null },
+      { id: 'p3', bedId: 'b', bloomedAt: null },
+    ];
     await render(<ManageBeds />);
-    expect(screen.getByText('Always here')).toBeTruthy();
-    expect(screen.queryByLabelText('Delete Ideas')).toBeNull();
+    expect(screen.getByText('Manage beds')).toBeTruthy();
+    expect(screen.getByText('2 of 6')).toBeTruthy();
+    expect(screen.getByText('2 thoughts')).toBeTruthy();
+    expect(screen.getByText('1 thought')).toBeTruthy();
     expect(screen.queryByLabelText('Move Ideas up')).toBeNull();
+    expect(screen.queryByText('Ideas')).toBeNull();
     expect(screen.getByLabelText('Move Alpha up').props.accessibilityState.disabled).toBe(true);
-    expect(screen.getByLabelText('Move Alpha down').props.accessibilityState.disabled).toBe(false);
-    expect(screen.getByLabelText('Move Beta down').props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByLabelText('Move Beta up').props.accessibilityState.disabled).toBe(false);
   });
 
-  it('Down reorders', async () => {
+  it('Up reorders', async () => {
     await render(<ManageBeds />);
-    await fireEvent.press(screen.getByLabelText('Move Alpha down'));
+    await fireEvent.press(screen.getByLabelText('Move Beta up'));
     expect(reorderBeds).toHaveBeenCalledWith(['b', 'a']);
   });
 
-  it('delete asks for confirmation before removeBed', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  it('colour dot press recolors to the next colour in order (wrapping)', async () => {
+    mockState.recolorBed = recolorBed;
     await render(<ManageBeds />);
-    await fireEvent.press(screen.getByLabelText('Delete Alpha'));
-    expect(removeBed).not.toHaveBeenCalled();
-    expect(alert).toHaveBeenCalledWith('Delete Alpha?', 'Its plants will move to Ideas', expect.any(Array));
-    const buttons = alert.mock.calls[0][2]!;
-    expect(buttons.map((b) => b.text)).toEqual(['Cancel', 'Delete']);
-    buttons[1].onPress!();
-    await waitFor(() => expect(removeBed).toHaveBeenCalledWith('a'));
-    alert.mockRestore();
-  });
-
-  it('adds a trimmed bed', async () => {
-    addBed.mockResolvedValue({});
-    await render(<ManageBeds />);
-    await fireEvent.changeText(screen.getByLabelText('New bed name'), '  Garden  ');
-    await fireEvent.press(screen.getByLabelText('Add bed'));
-    await waitFor(() => expect(addBed).toHaveBeenCalledWith('Garden'));
+    await fireEvent.press(screen.getByLabelText('Change color of Alpha'));
+    expect(recolorBed).toHaveBeenCalledWith('a', 'orange');
+    await fireEvent.press(screen.getByLabelText('Change color of Beta'));
+    expect(recolorBed).toHaveBeenCalledWith('b', 'purple');
   });
 
   it('saves a rename once on blur + submit, and re-syncs when the bed name changes', async () => {
