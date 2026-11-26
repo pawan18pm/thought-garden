@@ -233,6 +233,16 @@ export function createRepos(db: Db, newId: () => string, now: () => string) {
         planted: await plantsWhere('substr(p.created_at, 1, 10) = ?', [key]),
       };
     },
+    async detailRange(startKey: string, endKey: string): Promise<{ bloomed: Plant[]; watered: Plant[]; planted: Plant[] }> {
+      return {
+        bloomed: await plantsWhere('substr(p.bloomed_at, 1, 10) BETWEEN ? AND ?', [startKey, endKey]),
+        watered: await plantsWhere(
+          'p.id IN (SELECT plant_id FROM waterings WHERE substr(watered_at, 1, 10) BETWEEN ? AND ?)',
+          [startKey, endKey],
+        ),
+        planted: await plantsWhere('substr(p.created_at, 1, 10) BETWEEN ? AND ?', [startKey, endKey]),
+      };
+    },
   };
 
   const settings = {
