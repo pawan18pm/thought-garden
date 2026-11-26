@@ -95,7 +95,9 @@ export default function FirstPlant() {
     >
       <View style={[styles.card, { backgroundColor: tint, borderBottomColor: accent }]}>
         <View style={styles.cardHead}>
-          <Text style={styles.cardName}>{target?.name ?? ''}</Text>
+          <Text style={styles.cardName} numberOfLines={1} ellipsizeMode="tail">
+            {target?.name ?? ''}
+          </Text>
           <Text style={styles.badge}>{grown ? 'planted!' : 'new seed'}</Text>
         </View>
         <TextInput
@@ -140,7 +142,9 @@ export default function FirstPlant() {
                   : null,
               ]}
             >
-              <Text style={styles.chipText}>{b.name}</Text>
+              <Text style={styles.chipText} numberOfLines={1} ellipsizeMode="tail">
+                {b.name}
+              </Text>
             </PressableScale>
           );
         })}
@@ -157,8 +161,8 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     overflow: 'hidden',
   },
-  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, paddingBottom: 0 },
-  cardName: { fontFamily: fonts.titleXBold, fontSize: 18, color: colors.ink },
+  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: 14, paddingBottom: 0 },
+  cardName: { flexShrink: 1, fontFamily: fonts.titleXBold, fontSize: 18, color: colors.ink },
   badge: {
     paddingVertical: 4,
     paddingHorizontal: 10,
@@ -191,6 +195,7 @@ const styles = StyleSheet.create({
   which: { marginTop: 22, marginBottom: 10, fontFamily: fonts.bodySemi, fontSize: 14, color: colors.muted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: {
+    maxWidth: 220,
     height: 46,
     paddingHorizontal: 18,
     justifyContent: 'center',

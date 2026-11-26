@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import {
   OnboardingScreen,
@@ -12,6 +12,7 @@ import { MAX_BEDS, useOnboardingDraft, type DraftBed } from '@/features/onboardi
 import { PressableScale } from '@/ui/PressableScale';
 import { useGarden, useRepos } from '@/store/AppProvider';
 import { bedColors, border, colors, flowerColors, fonts } from '@/ui/tokens';
+import { MAX_BED_NAME } from '@/domain/validate';
 
 const IDEAS = ['Health', 'Reading', 'Work', 'Side project', 'Money', 'Learning', 'Family'];
 
@@ -38,6 +39,12 @@ export default function Beds() {
     })),
   );
   const busy = useRef(false);
+  // Stay busy from Continue until this screen is shown again (Back), so a double tap can't push twice.
+  useFocusEffect(
+    useCallback(() => {
+      busy.current = false;
+    }, []),
+  );
 
   const hasBeds = beds.length > 0;
   const valid = hasBeds && beds.length <= MAX_BEDS && beds.every((b) => b.name.trim().length > 0);
@@ -51,15 +58,26 @@ export default function Beds() {
       // Saved alongside the bed writes rather than ahead of them.
       const savePersona = Promise.resolve(persona ? repos.settings.set('persona', persona) : undefined);
       savePersona.catch(() => {}); // still awaited below; this just keeps an early bed failure from leaving it unhandled
-      const st = useOnboardingDraft.getState();
       const existingUser = storeBeds.filter((b) => !b.isIdeas);
-      if (existingUser.length > 0 && st.createdIds.length === 0) {
-        // Onboarding was interrupted earlier: beds already exist, do not recreate them.
-        if (!st.firstBedId) setFirstBedId(existingUser[0].id);
-        await savePersona;
-        router.push('/onboarding/first-plant');
-        return;
+      if (existingUser.length > 0 && useOnboardingDraft.getState().createdIds.length === 0) {
+        // Onboarding was interrupted earlier (app killed after the beds were made). Adopt those
+        // beds: pair each draft bed with one (same name first, then in order) so the edits made
+        // now are applied to them instead of being skipped or duplicated.
+        const free = [...existingUser];
+        const unpaired: DraftBed[] = [];
+        for (const b of useOnboardingDraft.getState().beds) {
+          if (b.bedId) continue;
+          const i = free.findIndex((x) => x.name.trim().toLowerCase() === b.name.trim().toLowerCase());
+          if (i >= 0) setBedId(b.key, free.splice(i, 1)[0].id);
+          else unpaired.push(b);
+        }
+        for (const b of unpaired) {
+          const match = free.shift();
+          if (match) setBedId(b.key, match.id);
+        }
+        useOnboardingDraft.getState().adopt(existingUser.map((b) => b.id));
       }
+      const st = useOnboardingDraft.getState();
       // Reconcile: add new beds and apply edits first, then remove dropped ones
       // (the store refuses to remove the last bed, so removals come last).
       for (const b of st.beds) {
@@ -84,7 +102,6 @@ export default function Beds() {
       if (first) setFirstBedId(first);
       await savePersona;
       router.push('/onboarding/first-plant');
-      busy.current = false;
     } catch (e) {
       console.error('Onboarding beds failed', e);
       busy.current = false;
@@ -174,7 +191,7 @@ function BedRow({
         ref={ref}
         accessibilityLabel="Bed name"
         value={bed.name}
-        maxLength={30}
+        maxLength={MAX_BED_NAME}
         onChangeText={(t) => onRename(bed.key, t)}
         onFocus={() => reveal(ref)}
         returnKeyType="done"
@@ -214,7 +231,7 @@ function AddBed({ hasBeds, ideas, onAdd }: { hasBeds: boolean; ideas: string[]; 
           placeholder={hasBeds ? 'Name another bed…' : 'Name your first bed…'}
           placeholderTextColor="#6F685C"
           value={text}
-          maxLength={30}
+          maxLength={MAX_BED_NAME}
           onChangeText={setText}
           onFocus={() => reveal(ref)}
           onSubmitEditing={() => add(text)}

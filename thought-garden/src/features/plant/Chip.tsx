@@ -18,13 +18,16 @@ export function Chip({ label, accessibilityLabel, selected, onPress }: Props) {
       accessibilityState={{ selected: !!selected }}
       style={[styles.chip, selected && styles.selected]}
     >
-      <Text style={[styles.text, selected && styles.selectedText]}>{label}</Text>
+      <Text style={[styles.text, selected && styles.selectedText]} numberOfLines={1} ellipsizeMode="tail">
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   chip: {
+    maxWidth: 220,
     minHeight: 44,
     paddingHorizontal: 16,
     justifyContent: 'center',

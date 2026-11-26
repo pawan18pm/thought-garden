@@ -9,10 +9,20 @@ import Reminder from '@/app/onboarding/reminder';
 import Welcome from '@/app/onboarding/welcome';
 
 const mockRouter = { push: jest.fn(), replace: jest.fn() };
-jest.mock('expo-router', () => ({
-  useRouter: () => mockRouter,
-  Stack: () => null,
-}));
+let mockRefocus: (() => void) | null = null;
+jest.mock('expo-router', () => {
+  const React = require('react');
+  return {
+    useRouter: () => mockRouter,
+    Stack: () => null,
+    useFocusEffect: (cb: () => void) => {
+      React.useEffect(() => {
+        mockRefocus = cb;
+        cb();
+      }, [cb]);
+    },
+  };
+});
 jest.mock('@react-native-community/datetimepicker', () => () => null);
 jest.mock('@/ui/useReducedMotion', () => ({ useReducedMotion: () => true }));
 const mockEnable = jest.fn();
@@ -167,6 +177,20 @@ describe('onboarding', () => {
     err.mockRestore();
   });
 
+  it('double-tapping Continue pushes once; coming back re-enables it', async () => {
+    useOnboardingDraft.getState().setPersona('jobPrep');
+    await render(<Beds />);
+    await fireEvent.press(continueBtn());
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(1));
+    await fireEvent.press(continueBtn());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mockRouter.push).toHaveBeenCalledTimes(1);
+    // Back to this screen: Continue works again.
+    mockRefocus!();
+    await fireEvent.press(continueBtn());
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(2));
+  });
+
   it('Continue reuses existing user beds instead of recreating them', async () => {
     mockState.beds = [
       { id: 'ideas', name: 'Ideas', isIdeas: true },
@@ -176,7 +200,36 @@ describe('onboarding', () => {
     await render(<Beds />);
     await fireEvent.press(continueBtn());
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/first-plant'));
+    // Interview is adopted, not recreated; the rest of the draft is still created.
+    expect(addBed.mock.calls.map((c) => c[0])).toEqual(['DSA', 'Resume', 'Portfolio']);
+    expect(renameBed).not.toHaveBeenCalled();
+    expect(useOnboardingDraft.getState().firstBedId).toBe('u1');
+  });
+
+  it('after an interrupted onboarding, edits reconcile against the existing beds', async () => {
+    mockState.beds = [
+      { id: 'ideas', name: 'Ideas', isIdeas: true },
+      { id: 'u1', name: 'Old one', isIdeas: false, color: 'blue' },
+      { id: 'u2', name: 'Spare', isIdeas: false, color: 'orange' },
+      { id: 'u3', name: 'Extra', isIdeas: false, color: 'purple' },
+    ];
+    useOnboardingDraft.setState({
+      persona: 'other',
+      beds: [
+        { key: 'x', name: 'Health', color: 'blue' },
+        { key: 'y', name: 'Extra', color: 'green' },
+      ],
+    });
+    await render(<Beds />);
+    await fireEvent.press(continueBtn());
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/first-plant'));
     expect(addBed).not.toHaveBeenCalled();
+    // Same name pairs first (Extra -> u3, recoloured), then in order (Health renames u1).
+    expect(renameBed).toHaveBeenCalledWith('u1', 'Health');
+    expect(recolorBed).toHaveBeenCalledWith('u3', 'green');
+    // The leftover empty bed is removed; first plant goes to the first draft bed.
+    expect(removeBed).toHaveBeenCalledWith('u2');
+    expect(removeBed).toHaveBeenCalledTimes(1);
     expect(useOnboardingDraft.getState().firstBedId).toBe('u1');
   });
 
@@ -229,6 +282,7 @@ describe('onboarding', () => {
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(1));
     expect(addBed).toHaveBeenCalledTimes(4);
     // user goes Back and edits
+    mockRefocus!();
     await fireEvent.changeText(screen.getAllByLabelText('Bed name')[0], 'Interviews');
     await fireEvent.press(screen.getByLabelText('Change color of DSA'));
     await fireEvent.press(screen.getByLabelText('Remove Portfolio'));
@@ -249,6 +303,7 @@ describe('onboarding', () => {
     await render(<Beds />);
     await fireEvent.press(screen.getByLabelText(/^Continue with/));
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(1));
+    mockRefocus!();
     await fireEvent.press(screen.getByLabelText('Clear all and start blank'));
     await fireEvent.changeText(screen.getByLabelText('New bed name'), 'Solo');
     await fireEvent.press(screen.getByLabelText('Add'));
@@ -264,6 +319,7 @@ describe('onboarding', () => {
     await render(<Beds />);
     await fireEvent.press(continueBtn());
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(1));
+    mockRefocus!();
     plantsInBed.mockImplementation((id: string) => (id === 'b2' ? [{ id: 'p' }] : []));
     await fireEvent.press(screen.getByLabelText('Remove DSA'));
     await fireEvent.press(screen.getByLabelText(/^Continue with/));

@@ -152,6 +152,10 @@ export function createRepos(db: Db, newId: () => string, now: () => string) {
     async remove(id: string): Promise<void> {
       await db.run('UPDATE plants SET deleted_at = ? WHERE id = ?', [now(), id]);
     },
+    /** Soft-deletes every thought in a bed, bloomed ones included. */
+    async removeInBed(bedId: string): Promise<void> {
+      await db.run('UPDATE plants SET deleted_at = ? WHERE bed_id = ? AND deleted_at IS NULL', [now(), bedId]);
+    },
     bloomedOn: (key: string): Promise<Plant[]> =>
       plantsWhere('substr(p.bloomed_at, 1, 10) = ?', [key]),
   };

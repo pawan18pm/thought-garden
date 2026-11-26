@@ -3,12 +3,12 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useGarden } from '@/store/AppProvider';
 import { BED_COLOR_ORDER, bedColors, colors, fonts, type BedColorKey } from '@/ui/tokens';
 import type { Bed } from '@/domain/types';
+import { MAX_BED_NAME } from '@/domain/validate';
 
-const MAX_NAME = 40;
 const MAX_BEDS = 6;
 const validName = (s: string): string | null => {
   const t = s.trim();
-  return t.length > 0 && t.length <= MAX_NAME ? t : null;
+  return t.length > 0 && t.length <= MAX_BED_NAME ? t : null;
 };
 const nextColor = (c: string): BedColorKey => {
   const i = BED_COLOR_ORDER.indexOf(c as BedColorKey);
@@ -71,7 +71,7 @@ function BedRow({ bed, index, ids, count, last }: { bed: Bed; index: number; ids
         onEndEditing={commitName}
         onBlur={commitName}
         onSubmitEditing={commitName}
-        maxLength={MAX_NAME}
+        maxLength={MAX_BED_NAME}
         accessibilityLabel={`Rename ${bed.name}`}
         returnKeyType="done"
       />

@@ -24,6 +24,7 @@ export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed, notic
   const [text, setText] = useState('');
   const [localBedId, setLocalBedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const busy = useRef(false);
 
   const wanted = selectedBedId !== undefined ? selectedBedId : localBedId;
@@ -32,6 +33,7 @@ export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed, notic
 
   const clearHint = () => {
     setToast(null);
+    setError(null);
     onClearNotice?.();
   };
 
@@ -49,14 +51,21 @@ export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed, notic
       await onPlant(clean, target.id);
       setText('');
       onClearNotice?.();
+      setError(null);
       setToast(`Planted in ${target.name}`);
+    } catch (e) {
+      // Keep the text so the user can retry.
+      console.warn('Plant failed', e);
+      setToast(null);
+      setError("Couldn't plant. Try again.");
     } finally {
       busy.current = false;
     }
   };
 
-  const message = toast ?? notice ?? null;
+  const message = error ?? toast ?? notice ?? null;
   const hint = message ?? (target ? `Into ${target.name}` : 'Add a bed first');
+  const hintColor = error ? '#B3261E' : message ? '#2E6B30' : colors.muted;
 
   return (
     <View style={styles.wrap} accessibilityLabel="Plant a thought">
@@ -98,13 +107,19 @@ export function QuickPlantBox({ beds, onPlant, selectedBedId, onSelectBed, notic
                   { backgroundColor: on ? tintOf(b) : colors.bg, borderColor: on ? colors.ink : '#D8D3CA' },
                 ]}
               >
-                <Text style={styles.chipText}>{b.name}</Text>
+                <Text style={styles.chipText} numberOfLines={1} ellipsizeMode="tail">
+                  {b.name}
+                </Text>
               </Pressable>
             );
           })}
         </ScrollView>
         <View style={styles.footer}>
-          <Text style={[styles.hint, { color: message ? '#2E6B30' : colors.muted }]} numberOfLines={1}>
+          <Text
+            style={[styles.hint, { color: hintColor }]}
+            numberOfLines={1}
+            accessibilityLiveRegion={error ? 'polite' : 'none'}
+          >
             {hint}
           </Text>
           <View>
@@ -153,6 +168,7 @@ const styles = StyleSheet.create({
   },
   chips: { gap: 8, paddingTop: 4, paddingBottom: 6 },
   chip: {
+    maxWidth: 180,
     height: 38,
     paddingHorizontal: 14,
     justifyContent: 'center',

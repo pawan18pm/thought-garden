@@ -4,7 +4,7 @@ import type { createRepos } from '@/db/repos';
 import type { Bed, Plant, Priority } from '@/domain/types';
 import type { BedColorKey } from '@/ui/tokens';
 import { sortPlants } from '@/domain/ordering';
-import { validateThought } from '@/domain/validate';
+import { cleanBedName, validateThought } from '@/domain/validate';
 import { BLOOM_AT_WATERS, canBloomNow } from '@/domain/stages';
 import { dayKey } from '@/domain/dates';
 import { setAnalyticsEnabled, track } from '@/analytics/analytics';
@@ -140,14 +140,16 @@ export function createGardenStore(repos: Repos) {
       // Bed-only writes reload just the beds: plants and today's blooms can't change,
       // and the plants query (with its per-row watering count) is the costly part of a full refresh.
       async addBed(name, color) {
-        const bed = await repos.beds.create(name, color);
+        const bed = await repos.beds.create(cleanBedName(name) ?? 'New bed', color);
         await refreshBeds();
         track('bed_created', {});
         return bed;
       },
 
       async renameBed(id, name) {
-        await repos.beds.rename(id, name);
+        const clean = cleanBedName(name);
+        if (!clean) return;
+        await repos.beds.rename(id, clean);
         await refreshBeds();
       },
 
@@ -176,7 +178,8 @@ export function createGardenStore(repos: Repos) {
         if (opts?.moveTo) {
           for (const p of inBed) await repos.plants.edit(p.id, { bedId: opts.moveTo });
         } else if (opts?.deleteThoughts) {
-          for (const p of inBed) await repos.plants.remove(p.id);
+          // "Delete bed and its thoughts": bloomed thoughts in the bed go too, not just growing ones.
+          await repos.plants.removeInBed(id);
         }
         await repos.beds.remove(id);
         if (get().lastBedId === id) set({ lastBedId: null });

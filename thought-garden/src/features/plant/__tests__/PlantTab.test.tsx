@@ -75,6 +75,19 @@ describe('Plant tab', () => {
     expect(input().props.value).toBe('');
   });
 
+  it('a failed plant keeps the text and says so in the hint', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    fns.plant.mockRejectedValueOnce(new Error('db'));
+    await render(<PlantTab />);
+    await fireEvent.changeText(input(), 'Two pointers');
+    await fireEvent.press(plantBtn());
+    expect(screen.getByText("Couldn't plant. Try again.")).toBeTruthy();
+    expect(input().props.value).toBe('Two pointers');
+    await fireEvent.changeText(input(), 'Two pointers!');
+    expect(screen.queryByText("Couldn't plant. Try again.")).toBeNull();
+    warn.mockRestore();
+  });
+
   it('Enter submits', async () => {
     await render(<PlantTab />);
     await fireEvent.changeText(input(), 'Learn graphs');

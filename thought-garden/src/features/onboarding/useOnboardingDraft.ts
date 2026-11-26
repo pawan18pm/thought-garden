@@ -28,6 +28,8 @@ interface Draft {
   addNamed(name: string): boolean;
   clear(): void;
   setBedId(key: string, bedId: string): void;
+  /** Treat beds left by an interrupted onboarding as this session's, so edits reconcile against them. */
+  adopt(bedIds: string[]): void;
   setFirstBedId(id: string): void;
   setPlanted(p: { bedName: string; text: string }): void;
   reset(): void;
@@ -74,6 +76,8 @@ export const useOnboardingDraft = create<Draft>()((set, get) => ({
       beds: s.beds.map((b) => (b.key === key ? { ...b, bedId } : b)),
       createdIds: s.createdIds.includes(bedId) ? s.createdIds : [...s.createdIds, bedId],
     })),
+  adopt: (bedIds) =>
+    set((s) => ({ createdIds: [...s.createdIds, ...bedIds.filter((id) => !s.createdIds.includes(id))] })),
   setFirstBedId: (firstBedId) => set({ firstBedId }),
   setPlanted: (planted) => set({ planted }),
   reset: () => set({ persona: null, beds: [], firstBedId: null, createdIds: [], planted: null }),

@@ -147,6 +147,29 @@ describe('garden store', () => {
     expect(store.getState().beds.find((x) => x.id === a.id)).toBeUndefined();
   });
 
+  it('removeBed deleteThoughts also deletes bloomed thoughts in that bed', async () => {
+    const { store, repos } = await setup();
+    const a = await store.getState().addBed('A');
+    await store.getState().addBed('B');
+    const p = (await store.getState().plant('done', a.id))!;
+    await store.getState().water(p.id);
+    await store.getState().bloom(p.id);
+    expect(store.getState().bloomedToday).toHaveLength(1);
+    await store.getState().removeBed(a.id, { deleteThoughts: true });
+    expect(store.getState().bloomedToday).toHaveLength(0);
+    expect((await repos.activity.detailRange('0000-01-01', '9999-12-31')).bloomed).toHaveLength(0);
+  });
+
+  it('bed names are clamped to 30 characters and blank renames ignored', async () => {
+    const { store } = await setup();
+    const a = await store.getState().addBed('x'.repeat(40));
+    expect(store.getState().beds.find((b) => b.id === a.id)?.name).toBe('x'.repeat(30));
+    await store.getState().renameBed(a.id, '   ');
+    expect(store.getState().beds.find((b) => b.id === a.id)?.name).toBe('x'.repeat(30));
+    await store.getState().renameBed(a.id, 'y'.repeat(35));
+    expect(store.getState().beds.find((b) => b.id === a.id)?.name).toBe('y'.repeat(30));
+  });
+
   it('addBed with colour stores it', async () => {
     const { store } = await setup();
     const a = await store.getState().addBed('A', 'pink');

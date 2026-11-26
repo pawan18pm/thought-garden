@@ -257,6 +257,7 @@ export function BigButton({ label, onPress, disabled, tone = 'white' }: BigButto
     >
       <Text
         numberOfLines={1}
+        ellipsizeMode="tail"
         adjustsFontSizeToFit
         minimumFontScale={0.8}
         style={[styles.bigText, tone === 'ink' && !disabled && { color: '#FFFFFF' }, disabled && { color: '#6F685C' }]}

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { Bed, Plant } from '@/domain/types';
 import { PlantArt } from '@/ui/PlantArt';
 import { border, colors, flowerColors, fonts, type BedColorKey } from '@/ui/tokens';
+import { MAX_BED_NAME } from '@/domain/validate';
 import { ThoughtRow } from './ThoughtRow';
 import { tintOf } from './QuickPlantBox';
 
@@ -83,7 +84,7 @@ export function BedSection({
                 onBlur={onCommitName}
                 onEndEditing={onCommitName}
                 onSubmitEditing={onCommitName}
-                maxLength={40}
+                maxLength={MAX_BED_NAME}
                 style={styles.nameInput}
               />
               {canRemove && (
@@ -99,7 +100,7 @@ export function BedSection({
             </>
           ) : (
             <>
-              <Text style={styles.name} numberOfLines={1}>
+              <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
                 {bed.name}
               </Text>
               <View style={styles.count}>
@@ -171,7 +172,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: 'hidden',
   },
-  name: { flex: 1, fontFamily: fonts.titleBold, fontSize: 21, color: colors.ink },
+  name: { flex: 1, minWidth: 0, fontFamily: fonts.titleBold, fontSize: 21, color: colors.ink },
   nameInput: {
     flex: 1,
     minWidth: 0,
