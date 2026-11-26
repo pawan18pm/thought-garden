@@ -12,7 +12,13 @@ export default function Welcome() {
       step="welcome"
       title="hey, welcome to Thought Garden."
       titleSize={30}
-      footer={<BigButton width={220} label="let's grow" onPress={() => router.push('/onboarding/persona')} />}
+      topPadding={96}
+      hero={
+        <View style={styles.logo}>
+          <LogoMark size={64} />
+        </View>
+      }
+      footer={<BigButton width={220} fontSize={20} label="let's grow" onPress={() => router.push('/onboarding/persona')} />}
     >
       <View style={styles.paras}>
         <Text style={styles.p}>your head is full of good thoughts. most of them are gone by tomorrow.</Text>
@@ -20,9 +26,6 @@ export default function Welcome() {
           here, every thought gets planted in a bed. water it a little each day. when it's done, it blooms.
         </Text>
         <Text style={styles.p}>that's the whole app. simple on purpose.</Text>
-      </View>
-      <View style={styles.logo}>
-        <LogoMark size={64} />
       </View>
     </OnboardingScreen>
   );
@@ -32,7 +35,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 84,
     height: 84,
-    marginTop: 28,
+    marginBottom: 32,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: bedColors.green,
@@ -40,6 +43,6 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     borderRadius: 26,
   },
-  paras: { gap: 16 },
+  paras: { gap: 16, marginTop: -2 },
   p: { fontFamily: fonts.body, fontSize: 18, lineHeight: 26, color: colors.ink },
 });

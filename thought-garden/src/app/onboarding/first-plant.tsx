@@ -20,7 +20,6 @@ export default function FirstPlant() {
   const draftBeds = useOnboardingDraft((s) => s.beds);
   const storeBeds = useGarden((s) => s.beds);
   const plant = useGarden((s) => s.plant);
-  const water = useGarden((s) => s.water);
   const [text, setText] = useState('');
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [grown, setGrown] = useState(false);
@@ -52,7 +51,6 @@ export default function FirstPlant() {
         busy.current = false;
         return;
       }
-      await water(p.id);
       useOnboardingDraft.getState().setPlanted({ bedName: target.name, text: text.trim() });
       // Mark onboarding complete now so an app kill on Reminder cannot rerun it.
       await repos.settings.set('onboarding_done', '1');
@@ -72,9 +70,11 @@ export default function FirstPlant() {
       title="Plant your first thought"
       progress={3}
       back
+      hideBack={grown}
       footer={
         <BigButton
           width={280}
+          tone="ink"
           label={`Plant it in ${target?.name ?? ''}`}
           disabled={!valid || grown}
           onPress={submit}
@@ -102,7 +102,7 @@ export default function FirstPlant() {
           style={styles.input}
         />
         <View style={styles.art}>
-          <PlantArt stage={grown ? 'watered' : 'seed'} size={54} />
+          <PlantArt stage="seed" size={54} />
         </View>
         <View style={styles.soil} />
       </View>
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: border,
     borderBottomWidth: border + 2,
-    borderColor: '#D8D3CA',
+    borderColor: colors.ink,
     borderBottomColor: colors.line,
     borderRadius: 999,
   },

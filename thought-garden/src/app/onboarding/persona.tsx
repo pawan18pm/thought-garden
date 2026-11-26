@@ -11,7 +11,7 @@ const CARDS: { id: Persona; sub: string }[] = [
   { id: 'student', sub: 'Subjects · Exams · Assignments' },
   { id: 'jobPrep', sub: 'Interview · DSA · Resume' },
   { id: 'professional', sub: 'Work · Upskilling · Side project' },
-  { id: 'builder', sub: 'Ideas · Build · Learn · Launch' },
+  { id: 'builder', sub: 'Ideas to explore · Build · Learn · Launch' },
   { id: 'other', sub: "I'll make my own beds" },
 ];
 

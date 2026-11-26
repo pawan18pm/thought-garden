@@ -13,6 +13,10 @@ export default function Beds() {
   const repos = useRepos();
   const addBed = useGarden((s) => s.addBed);
   const storeBeds = useGarden((s) => s.beds);
+  const renameBed = useGarden((s) => s.renameBed);
+  const recolorBed = useGarden((s) => s.recolorBed);
+  const removeBed = useGarden((s) => s.removeBed);
+  const plantsInBed = useGarden((s) => s.plantsInBed);
   const { persona, beds, rename, recolor, remove, addNamed, clear, setBedId, setFirstBedId } = useOnboardingDraft();
   const [newBed, setNewBed] = useState('');
   const busy = useRef(false);
@@ -31,22 +35,38 @@ export default function Beds() {
     busy.current = true;
     try {
       if (persona) await repos.settings.set('persona', persona);
-      const draft = useOnboardingDraft.getState().beds;
+      const st = useOnboardingDraft.getState();
       const existingUser = storeBeds.filter((b) => !b.isIdeas);
-      const draftHasCreated = draft.some((b) => b.bedId);
-      if (existingUser.length > 0 && !draftHasCreated) {
+      if (existingUser.length > 0 && st.createdIds.length === 0) {
         // Onboarding was interrupted earlier: beds already exist, do not recreate them.
-        if (!useOnboardingDraft.getState().firstBedId) setFirstBedId(existingUser[0].id);
+        if (!st.firstBedId) setFirstBedId(existingUser[0].id);
         router.push('/onboarding/first-plant');
         return;
       }
-      for (const b of draft) {
-        if (b.bedId) continue;
-        const bed = await addBed(b.name.trim(), b.color);
-        setBedId(b.key, bed.id);
-        if (!useOnboardingDraft.getState().firstBedId) setFirstBedId(bed.id);
+      // Reconcile: add new beds and apply edits first, then remove dropped ones
+      // (the store refuses to remove the last bed, so removals come last).
+      for (const b of st.beds) {
+        const name = b.name.trim();
+        if (!b.bedId) {
+          const bed = await addBed(name, b.color);
+          setBedId(b.key, bed.id);
+          continue;
+        }
+        const current = storeBeds.find((x) => x.id === b.bedId);
+        if (!current) continue;
+        if (current.name !== name) await renameBed(b.bedId, name);
+        if (current.color !== b.color) await recolorBed(b.bedId, b.color);
       }
+      const keptIds = useOnboardingDraft.getState().beds.map((b) => b.bedId);
+      for (const id of st.createdIds) {
+        if (keptIds.includes(id)) continue;
+        // Keep a dropped bed that already holds a thought rather than lose it.
+        if (plantsInBed(id).length === 0) await removeBed(id);
+      }
+      const first = useOnboardingDraft.getState().beds[0]?.bedId;
+      if (first) setFirstBedId(first);
       router.push('/onboarding/first-plant');
+      busy.current = false;
     } catch (e) {
       console.error('Onboarding beds failed', e);
       busy.current = false;
@@ -60,7 +80,10 @@ export default function Beds() {
 
   const onSkip = () => {
     if (busy.current) return;
-    if (!hasBeds) useOnboardingDraft.setState({ beds: [{ key: 'mine', name: 'My thoughts', color: 'green' }] });
+    const kept = beds.filter((b) => b.name.trim().length > 0);
+    useOnboardingDraft.setState({
+      beds: kept.length ? kept : [{ key: 'mine', name: 'My thoughts', color: 'green' }],
+    });
     void create();
   };
 
@@ -162,7 +185,7 @@ export default function Beds() {
 
 const styles = StyleSheet.create({
   skip: { height: 44, paddingHorizontal: 4, justifyContent: 'center' },
-  skipText: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.muted },
+  skipText: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.muted },
   list: { gap: 12, paddingBottom: 24 },
   row: {
     flexDirection: 'row',
@@ -221,10 +244,10 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     borderRadius: 14,
   },
-  addText: { fontFamily: fonts.bodySemi, fontSize: 15, color: '#6F685C' },
+  addText: { fontFamily: fonts.bodyBold, fontSize: 15, color: '#6F685C' },
   ideas: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   idea: {
-    height: 40,
+    minHeight: 44,
     paddingHorizontal: 14,
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',

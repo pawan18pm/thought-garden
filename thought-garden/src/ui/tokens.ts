@@ -46,4 +46,5 @@ export const fonts = {
   titleBold: 'BricolageGrotesque_700Bold',
   body: 'Inter_400Regular',
   bodySemi: 'Inter_600SemiBold',
+  bodyBold: 'Inter_700Bold',
 } as const;

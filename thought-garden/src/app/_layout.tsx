@@ -6,7 +6,7 @@ import {
   BricolageGrotesque_700Bold,
   BricolageGrotesque_800ExtraBold,
 } from '@expo-google-fonts/bricolage-grotesque';
-import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
+import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { colors } from '@/ui/tokens';
 import { bootOnce, type Boot } from '@/store/boot';
@@ -31,6 +31,7 @@ export default function RootLayout() {
     BricolageGrotesque_800ExtraBold,
     Inter_400Regular,
     Inter_600SemiBold,
+    Inter_700Bold,
   });
   const loaded = fontsLoaded || !!fontError;
   const [attempt, setAttempt] = useState(0);

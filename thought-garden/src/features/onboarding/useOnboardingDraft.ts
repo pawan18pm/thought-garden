@@ -18,6 +18,8 @@ interface Draft {
   persona: Persona | null;
   beds: DraftBed[];
   firstBedId: string | null;
+  /** Every bed id created this session (survives Back and edits). */
+  createdIds: string[];
   planted: { bedName: string; text: string } | null;
   setPersona(p: Persona): void;
   rename(key: string, name: string): void;
@@ -37,6 +39,7 @@ export const useOnboardingDraft = create<Draft>()((set, get) => ({
   persona: null,
   beds: [],
   firstBedId: null,
+  createdIds: [],
   planted: null,
   setPersona: (persona) =>
     set({
@@ -66,8 +69,12 @@ export const useOnboardingDraft = create<Draft>()((set, get) => ({
     return true;
   },
   clear: () => set({ beds: [] }),
-  setBedId: (key, bedId) => set((s) => ({ beds: s.beds.map((b) => (b.key === key ? { ...b, bedId } : b)) })),
+  setBedId: (key, bedId) =>
+    set((s) => ({
+      beds: s.beds.map((b) => (b.key === key ? { ...b, bedId } : b)),
+      createdIds: s.createdIds.includes(bedId) ? s.createdIds : [...s.createdIds, bedId],
+    })),
   setFirstBedId: (firstBedId) => set({ firstBedId }),
   setPlanted: (planted) => set({ planted }),
-  reset: () => set({ persona: null, beds: [], firstBedId: null, planted: null }),
+  reset: () => set({ persona: null, beds: [], firstBedId: null, createdIds: [], planted: null }),
 }));

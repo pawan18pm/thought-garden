@@ -17,6 +17,12 @@ interface Props {
   back?: boolean;
   headerRight?: ReactNode;
   titleSize?: number;
+  /** Rendered above the title (welcome logo tile). */
+  hero?: ReactNode;
+  /** The screen renders its own title inside children. */
+  hideTitle?: boolean;
+  topPadding?: number;
+  hideBack?: boolean;
 }
 
 /** Shared frame: tracks the step view once on mount, renders progress, title, body and footer. */
@@ -29,6 +35,10 @@ export function OnboardingScreen({
   back,
   headerRight,
   titleSize = 32,
+  hero,
+  hideTitle,
+  topPadding = 24,
+  hideBack,
 }: Props) {
   const router = useRouter();
   useEffect(() => {
@@ -39,7 +49,7 @@ export function OnboardingScreen({
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {progress ? (
           <View style={styles.header}>
-            {back ? (
+            {back && !hideBack ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Back"
@@ -55,10 +65,13 @@ export function OnboardingScreen({
             {headerRight}
           </View>
         ) : null}
-        <Pressable accessible={false} onPress={Keyboard.dismiss} style={styles.body}>
-          <Text accessibilityRole="header" style={[styles.title, { fontSize: titleSize }]}>
-            {title}
-          </Text>
+        <Pressable accessible={false} onPress={Keyboard.dismiss} style={[styles.body, { paddingTop: topPadding }]}>
+          {hero}
+          {hideTitle ? null : (
+            <Text accessibilityRole="header" style={[styles.title, { fontSize: titleSize }]}>
+              {title}
+            </Text>
+          )}
           {children}
         </Pressable>
         {footer ? <View style={styles.footer}>{footer}</View> : null}
@@ -72,10 +85,13 @@ interface BigButtonProps {
   onPress: () => void;
   disabled?: boolean;
   width?: number;
+  /** 'ink' is the filled enabled state used by Plant it. */
+  tone?: 'white' | 'ink';
+  fontSize?: number;
 }
 
 /** v6 white button with a green drop shadow; greyed when disabled. */
-export function BigButton({ label, onPress, disabled, width = 260 }: BigButtonProps) {
+export function BigButton({ label, onPress, disabled, width = 260, tone = 'white', fontSize = 19 }: BigButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -83,9 +99,9 @@ export function BigButton({ label, onPress, disabled, width = 260 }: BigButtonPr
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[styles.big, { width }, disabled && styles.bigOff]}
+      style={[styles.big, { width }, tone === 'ink' && styles.bigInk, disabled && styles.bigOff]}
     >
-      <Text style={[styles.bigText, disabled && { color: '#6F685C' }]}>{label}</Text>
+      <Text style={[styles.bigText, { fontSize }, tone === 'ink' && !disabled && { color: '#FFFFFF' }, disabled && { color: '#6F685C' }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -128,6 +144,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: border + 6,
     borderBottomColor: '#8ACB72',
   },
+  bigInk: { backgroundColor: colors.ink },
   bigOff: { backgroundColor: '#F3F1EC', borderColor: '#D8D3CA', borderBottomWidth: border },
   bigText: { fontFamily: fonts.titleBold, fontSize: 19, color: colors.ink },
 });

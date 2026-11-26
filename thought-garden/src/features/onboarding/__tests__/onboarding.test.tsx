@@ -30,17 +30,26 @@ const { track } = jest.requireMock('@/analytics/analytics') as { track: jest.Moc
 const addBed = jest.fn();
 const plant = jest.fn();
 const water = jest.fn();
+const renameBed = jest.fn();
+const recolorBed = jest.fn();
+const removeBed = jest.fn();
+const plantsInBed = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
   useOnboardingDraft.getState().reset();
   useOnboardingState.setState({ done: false });
   let n = 0;
-  addBed.mockImplementation(async (name: string) => ({ id: `b${++n}`, name }));
+  addBed.mockImplementation(async (name: string, color: string) => {
+    const bed = { id: `b${++n}`, name, color, isIdeas: false };
+    (mockState.beds as unknown[]).push({ ...bed });
+    return bed;
+  });
+  plantsInBed.mockReturnValue([]);
   plant.mockImplementation(async (text: string, bedId: string) => ({ id: 'p1', text, bedId }));
   water.mockResolvedValue(undefined);
   Object.keys(mockState).forEach((k) => delete mockState[k]);
-  Object.assign(mockState, { addBed, plant, water, beds: [{ id: 'ideas', name: 'Ideas', isIdeas: true }] });
+  Object.assign(mockState, { addBed, plant, water, renameBed, recolorBed, removeBed, plantsInBed, beds: [{ id: 'ideas', name: 'Ideas', isIdeas: true }] });
 });
 
 const continueBtn = () => screen.getByLabelText(/^Continue with/);
@@ -189,10 +198,83 @@ describe('onboarding', () => {
     await fireEvent.press(screen.getByLabelText('DSA'));
     await fireEvent.changeText(screen.getByLabelText('Your first thought'), 'Practice two-pointer problems');
     await fireEvent.press(screen.getByLabelText('Plant it in DSA'));
-    await waitFor(() => expect(water).toHaveBeenCalledWith('p1'));
+    await waitFor(() => expect(plant).toHaveBeenCalled());
+    expect(water).not.toHaveBeenCalled();
     expect(plant).toHaveBeenCalledWith('Practice two-pointer problems', 'b2', null, 'onboarding');
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/reminder'));
     expect(useOnboardingDraft.getState().planted).toEqual({ bedName: 'DSA', text: 'Practice two-pointer problems' });
+  });
+
+  it('Back then Continue again works and reconciles edits (rename, recolor, remove, add)', async () => {
+    useOnboardingDraft.getState().setPersona('jobPrep');
+    await render(<Beds />);
+    await fireEvent.press(continueBtn());
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(1));
+    expect(addBed).toHaveBeenCalledTimes(4);
+    // user goes Back and edits
+    await fireEvent.changeText(screen.getAllByLabelText('Bed name')[0], 'Interviews');
+    await fireEvent.press(screen.getByLabelText('Change color of DSA'));
+    await fireEvent.press(screen.getByLabelText('Remove Portfolio'));
+    await fireEvent.changeText(screen.getByLabelText('New bed name'), 'Garage');
+    await fireEvent.press(screen.getByLabelText('Add'));
+    await fireEvent.press(screen.getByLabelText('Continue with 4 beds'));
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(2));
+    expect(addBed).toHaveBeenCalledTimes(5);
+    expect(addBed.mock.calls[4][0]).toBe('Garage');
+    expect(renameBed).toHaveBeenCalledWith('b1', 'Interviews');
+    expect(recolorBed).toHaveBeenCalledWith('b2', 'purple');
+    expect(removeBed).toHaveBeenCalledWith('b4');
+    expect(useOnboardingDraft.getState().firstBedId).toBe('b1');
+  });
+
+  it('clear all then a new bed after Back replaces the created beds', async () => {
+    useOnboardingDraft.getState().setPersona('student');
+    await render(<Beds />);
+    await fireEvent.press(screen.getByLabelText(/^Continue with/));
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(1));
+    await fireEvent.press(screen.getByLabelText('Clear all and start blank'));
+    await fireEvent.changeText(screen.getByLabelText('New bed name'), 'Solo');
+    await fireEvent.press(screen.getByLabelText('Add'));
+    await fireEvent.press(screen.getByLabelText('Continue with 1 bed'));
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(2));
+    expect(addBed.mock.calls.map((c) => c[0])).toEqual(['Subjects', 'Exams', 'Assignments', 'Skills', 'Solo']);
+    expect(removeBed.mock.calls.map((c) => c[0])).toEqual(['b1', 'b2', 'b3', 'b4']);
+    expect(useOnboardingDraft.getState().firstBedId).toBe('b5');
+  });
+
+  it('keeps a dropped bed that already holds a thought', async () => {
+    useOnboardingDraft.getState().setPersona('jobPrep');
+    await render(<Beds />);
+    await fireEvent.press(continueBtn());
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(1));
+    plantsInBed.mockImplementation((id: string) => (id === 'b2' ? [{ id: 'p' }] : []));
+    await fireEvent.press(screen.getByLabelText('Remove DSA'));
+    await fireEvent.press(screen.getByLabelText(/^Continue with/));
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledTimes(2));
+    expect(removeBed).not.toHaveBeenCalled();
+  });
+
+  it('Skip drops blank names and falls back to My thoughts', async () => {
+    useOnboardingDraft.getState().setPersona('jobPrep');
+    await render(<Beds />);
+    for (const i of [0, 1, 2, 3]) await fireEvent.changeText(screen.getAllByLabelText('Bed name')[i], '  ');
+    await fireEvent.press(screen.getByLabelText('Skip'));
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalled());
+    expect(addBed.mock.calls.map((c) => c[0])).toEqual(['My thoughts']);
+  });
+
+  it('first plant has no Back button once planted', async () => {
+    twoBeds();
+    await render(<FirstPlant />);
+    expect(screen.getByLabelText('Back')).toBeTruthy();
+    await fireEvent.changeText(screen.getByLabelText('Your first thought'), 'Hi');
+    await fireEvent.press(screen.getByLabelText('Plant it in Interview'));
+    await waitFor(() => expect(screen.queryByLabelText('Back')).toBeNull());
+  });
+
+  it('builder card subtitle matches its suggested beds', async () => {
+    await render(<Persona />);
+    expect(screen.getByText('Ideas to explore · Build · Learn · Launch')).toBeTruthy();
   });
 
   it('Not now finishes onboarding', async () => {
@@ -210,8 +292,8 @@ describe('onboarding', () => {
     mockEnable.mockResolvedValue(true);
     useOnboardingDraft.setState({ persona: 'student' });
     await render(<Reminder />);
-    expect(screen.getByLabelText('Yes, nudge me').props.accessibilityState.disabled).toBe(true);
-    await fireEvent.press(screen.getByLabelText('Evening 9:00'));
+    expect(screen.getByLabelText('Yes, nudge me').props.accessibilityState.disabled).toBe(false);
+    expect(screen.getByLabelText('Evening 9:00').props.accessibilityState.selected).toBe(true);
     await fireEvent.press(screen.getByLabelText('Yes, nudge me'));
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/plant'));
     expect(mockEnable).toHaveBeenCalledWith('21:00');

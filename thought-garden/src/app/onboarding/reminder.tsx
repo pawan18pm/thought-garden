@@ -24,7 +24,7 @@ export default function Reminder() {
   const persona = useOnboardingDraft((s) => s.persona);
   const bedsCount = useOnboardingDraft((s) => s.beds.length);
   const planted = useOnboardingDraft((s) => s.planted);
-  const [choice, setChoice] = useState<Choice | null>(null);
+  const [choice, setChoice] = useState<Choice | null>('evening');
   const busy = useRef(false);
 
   const time = TIMES.find((t) => t.id === choice)?.hhmm ?? null;
@@ -54,22 +54,28 @@ export default function Reminder() {
       step="reminder"
       title="Want a daily nudge to water it?"
       progress={4}
+      hideTitle
       footer={
         <View style={styles.footer}>
-          <BigButton label="Yes, nudge me" disabled={!time} onPress={() => finish(true)} />
+          <BigButton fontSize={20} label="Yes, nudge me" disabled={!time} onPress={() => finish(true)} />
           <Pressable accessibilityRole="button" accessibilityLabel="Not now" onPress={() => finish(false)} style={styles.notNow}>
             <Text style={styles.notNowText}>Not now</Text>
           </Pressable>
         </View>
       }
     >
-      {planted ? (
-        <View style={styles.planted}>
-          <PlantArt stage="seed" size={72} />
-          <Text style={styles.plantedIn}>Planted in {planted.bedName}</Text>
-          <Text style={styles.quote}>"{planted.text}"</Text>
-        </View>
-      ) : null}
+      <View style={styles.planted}>
+        <PlantArt stage="seed" size={96} />
+        {planted ? (
+          <>
+            <Text style={styles.plantedIn}>Planted in {planted.bedName}</Text>
+            <Text style={styles.quote}>"{planted.text}"</Text>
+          </>
+        ) : null}
+        <Text accessibilityRole="header" style={styles.h1}>
+          Want a daily nudge to water it?
+        </Text>
+      </View>
       <View style={styles.times}>
         {TIMES.map((t) => {
           const on = t.id === choice;
@@ -96,10 +102,11 @@ export default function Reminder() {
 }
 
 const styles = StyleSheet.create({
-  planted: { alignItems: 'center', marginTop: -8, marginBottom: 8 },
+  planted: { alignItems: 'center', paddingHorizontal: 8, marginTop: 16 },
+  h1: { marginTop: 18, fontFamily: fonts.titleXBold, fontSize: 32, lineHeight: 35, color: colors.ink, textAlign: 'center' },
   plantedIn: { marginTop: 8, fontFamily: fonts.bodySemi, fontSize: 15, color: '#2E6B30' },
   quote: { marginTop: 4, fontFamily: fonts.body, fontSize: 15, color: colors.muted, textAlign: 'center' },
-  times: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  times: { flexDirection: 'row', gap: 12, marginTop: 28 },
   time: {
     flex: 1,
     height: 72,
