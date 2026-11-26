@@ -43,7 +43,6 @@ export function useActivity(year: number, month0: number) {
   const { activity } = useRepos();
   const [cells, setCells] = useState<Record<string, DayCell>>({});
   const [summary, setSummary] = useState<MonthSummary>(EMPTY_SUMMARY);
-  const [daysTended, setDaysTended] = useState(0);
   const latest = useRef({ year, month0 });
   latest.current = { year, month0 };
   const reqId = useRef(0);
@@ -58,7 +57,6 @@ export function useActivity(year: number, month0: number) {
       const g = groupDay(plants);
       setCells(toCells(raw));
       setSummary({ bloomed: g.bloomed.length, watered: g.watered.length, planted: g.planted.length });
-      setDaysTended(Object.values(raw).filter((a) => a.planted + a.watered + a.bloomed > 0).length);
     } catch (e) {
       console.error('Failed to load garden activity', e);
     }
@@ -68,11 +66,10 @@ export function useActivity(year: number, month0: number) {
   useEffect(() => {
     setCells({});
     setSummary(EMPTY_SUMMARY);
-    setDaysTended(0);
     void reload();
   }, [year, month0, reload]);
 
-  return { cells, summary, daysTended, reload };
+  return { cells, summary, reload };
 }
 
 /**

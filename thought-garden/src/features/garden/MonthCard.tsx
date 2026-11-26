@@ -6,30 +6,14 @@ import { border, colors, fonts } from '@/ui/tokens';
 import { MonthCalendar, type MonthCalendarProps } from './MonthCalendar';
 import type { MonthSummary } from './useActivity';
 
-export type MonthPeriod = 'past' | 'current' | 'future';
-
 interface Props extends MonthCalendarProps {
   summary: MonthSummary;
-  /** Where the shown month sits relative to today's month. */
-  period: MonthPeriod;
-  daysTended: number;
   onShift: (delta: number) => void;
   /** Rendered under the legend, inside the card (the day dropdown). */
   children?: React.ReactNode;
 }
 
-const EMPTY_LINE: Record<MonthPeriod, string> = {
-  past: 'A quiet month.',
-  current: 'Your garden starts today. Plant something.',
-  future: 'Still to come.',
-};
-
-export function monthLine(summary: MonthSummary, daysTended: number, period: MonthPeriod = 'current'): string {
-  const lead = summary.bloomed > 0 ? 'Your garden is blooming.' : daysTended > 0 ? 'Nice start.' : EMPTY_LINE[period];
-  return daysTended > 0 ? `${lead} ${daysTended} ${daysTended === 1 ? 'day' : 'days'} tended this month.` : lead;
-}
-
-export function MonthCard({ summary, daysTended, period, onShift, children, ...calendar }: Props) {
+export function MonthCard({ summary, onShift, children, ...calendar }: Props) {
   const title = format(new Date(calendar.year, calendar.month0, 1), 'MMMM yyyy');
   return (
     <View style={styles.wrap} accessibilityLabel={title}>
@@ -39,28 +23,21 @@ export function MonthCard({ summary, daysTended, period, onShift, children, ...c
           <Pressable onPress={() => onShift(-1)} accessibilityRole="button" accessibilityLabel="Previous month" style={styles.arrow}>
             <Text style={styles.arrowText}>‹</Text>
           </Pressable>
-          <Text style={styles.title} accessibilityRole="header">
-            {title}
-          </Text>
+          <View style={styles.titleGroup}>
+            <Text style={styles.title} accessibilityRole="header">
+              {title}
+            </Text>
+            {summary.bloomed > 0 && (
+              <View style={styles.badge} accessibilityLabel={`${summary.bloomed} ${summary.bloomed === 1 ? 'bloom' : 'blooms'} this month`}>
+                <PlantArt stage="bloom" size={18} soil={false} />
+                <Text style={styles.badgeText}>{summary.bloomed}</Text>
+              </View>
+            )}
+          </View>
           <Pressable onPress={() => onShift(1)} accessibilityRole="button" accessibilityLabel="Next month" style={styles.arrow}>
             <Text style={styles.arrowText}>›</Text>
           </Pressable>
         </View>
-        <View style={styles.chips}>
-          <View style={[styles.chip, { backgroundColor: '#FFEFF4' }]}>
-            <PlantArt stage="bloom" size={18} soil={false} />
-            <Text style={styles.chipText}>{`${summary.bloomed} bloomed`}</Text>
-          </View>
-          <View style={[styles.chip, { backgroundColor: '#EEF4FF' }]}>
-            <PlantArt stage="watered" size={18} soil={false} />
-            <Text style={styles.chipText}>{`${summary.watered} watered`}</Text>
-          </View>
-          <View style={[styles.chip, { backgroundColor: '#F3F9EE' }]}>
-            <PlantArt stage="seed" size={18} soil={false} />
-            <Text style={styles.chipText}>{`${summary.planted} planted`}</Text>
-          </View>
-        </View>
-        <Text style={styles.line}>{monthLine(summary, daysTended, period)}</Text>
         <MonthCalendar {...calendar} />
         {children}
       </View>
@@ -91,8 +68,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.titleXBold, fontSize: 22, color: colors.ink },
   arrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, borderRadius: 999, ...softShadow },
   arrowText: { fontFamily: fonts.bodyBold, fontSize: 20, color: colors.ink },
-  chips: { flexDirection: 'row', gap: 6, marginTop: 12 },
-  chip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, height: 36, borderRadius: 12 },
-  chipText: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.ink },
-  line: { marginTop: 8, marginHorizontal: 2, fontFamily: fonts.bodySemi, fontSize: 13, color: '#2E6B30' },
+  titleGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 3, height: 28, paddingHorizontal: 8, borderRadius: 999, backgroundColor: '#FFEFF4' },
+  badgeText: { fontFamily: fonts.titleXBold, fontSize: 14, color: colors.ink },
 });

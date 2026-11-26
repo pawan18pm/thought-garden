@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { MonthCalendar } from '../MonthCalendar';
-import { MonthCard, monthLine } from '../MonthCard';
+import { MonthCard } from '../MonthCard';
 import { DayDropdown } from '../DayDropdown';
 import { NextUpCard, nextUpTitle } from '../NextUpCard';
 import { bedA, bedB, ideas, mkPlant } from '../../plant/__fixtures__/fixtures';
@@ -24,7 +24,7 @@ describe('MonthCalendar', () => {
     const onDayPress = jest.fn();
     await render(<MonthCalendar {...base} cells={{}} onDayPress={onDayPress} />);
     expect(screen.getAllByTestId(/^cell-2026-/)).toHaveLength(30);
-    for (const t of ['Rest day', 'Planted', 'Watered', 'Bloomed']) expect(screen.getByText(t)).toBeTruthy();
+    for (const t of ['Rest', 'Planted', 'Watered', 'Bloomed']) expect(screen.getByText(t)).toBeTruthy();
 
     const future = screen.getByTestId('cell-2026-11-27');
     expect(future.props.accessibilityRole).not.toBe('button');
@@ -69,34 +69,28 @@ describe('MonthCalendar', () => {
 describe('MonthCard', () => {
   const cal = { year: 2026, month0: 10, todayKey: '2026-11-26', selectedKey: null, cells: {}, onDayPress: () => {} };
 
-  it('chips, title and arrows', async () => {
+  it('title, bloom badge and arrows', async () => {
     const onShift = jest.fn();
-    await render(<MonthCard {...cal} period="current" onShift={onShift} summary={{ bloomed: 2, watered: 3, planted: 4 }} daysTended={5} />);
+    await render(<MonthCard {...cal} onShift={onShift} summary={{ bloomed: 2, watered: 3, planted: 4 }} />);
     expect(screen.getByText('November 2026')).toBeTruthy();
-    expect(screen.getByText('2 bloomed')).toBeTruthy();
-    expect(screen.getByText('3 watered')).toBeTruthy();
-    expect(screen.getByText('4 planted')).toBeTruthy();
-    expect(screen.getByText('Your garden is blooming. 5 days tended this month.')).toBeTruthy();
+    expect(screen.getByLabelText('2 blooms this month')).toBeTruthy();
+    expect(screen.queryByText(/bloomed$|watered$|planted$|tended|blooming|quiet/)).toBeNull();
     await fireEvent.press(screen.getByLabelText('Previous month'));
     await fireEvent.press(screen.getByLabelText('Next month'));
     expect(onShift).toHaveBeenNthCalledWith(1, -1);
     expect(onShift).toHaveBeenNthCalledWith(2, 1);
   });
 
-  it('month line copy', () => {
-    expect(monthLine({ bloomed: 1, watered: 0, planted: 0 }, 1)).toBe('Your garden is blooming. 1 day tended this month.');
-    expect(monthLine({ bloomed: 0, watered: 1, planted: 2 }, 2)).toBe('Nice start. 2 days tended this month.');
-    expect(monthLine({ bloomed: 0, watered: 0, planted: 0 }, 0)).toBe('Your garden starts today. Plant something.');
-    expect(monthLine({ bloomed: 0, watered: 0, planted: 0 }, 0, 'current')).toBe('Your garden starts today. Plant something.');
-    expect(monthLine({ bloomed: 0, watered: 0, planted: 0 }, 0, 'past')).toBe('A quiet month.');
-    expect(monthLine({ bloomed: 0, watered: 0, planted: 0 }, 0, 'future')).toBe('Still to come.');
-    expect(monthLine({ bloomed: 0, watered: 1, planted: 0 }, 1, 'past')).toBe('Nice start. 1 day tended this month.');
+  it('badge hidden at zero, singular label at one', async () => {
+    const { rerender } = await render(<MonthCard {...cal} onShift={() => {}} summary={{ bloomed: 0, watered: 1, planted: 1 }} />);
+    expect(screen.queryByLabelText(/this month/)).toBeNull();
+    await rerender(<MonthCard {...cal} onShift={() => {}} summary={{ bloomed: 1, watered: 0, planted: 0 }} />);
+    expect(screen.getByLabelText('1 bloom this month')).toBeTruthy();
   });
 
-  it('chip and legend art is drawn without its own soil mound', async () => {
+  it('badge and legend art is drawn without its own soil mound', async () => {
     mockArt.mockClear();
-    await render(<MonthCard {...cal} period="past" onShift={() => {}} summary={{ bloomed: 0, watered: 0, planted: 0 }} daysTended={0} />);
-    expect(screen.getByText('A quiet month.')).toBeTruthy();
+    await render(<MonthCard {...cal} onShift={() => {}} summary={{ bloomed: 1, watered: 0, planted: 0 }} />);
     expect(mockArt.mock.calls.length).toBeGreaterThan(0);
     for (const [p] of mockArt.mock.calls) expect(p).toMatchObject({ soil: false });
   });
@@ -130,13 +124,10 @@ describe('DayDropdown', () => {
 
   beforeEach(() => mockArt.mockClear());
 
-  it('title, count tiles, non-empty sections with art and bed tags', async () => {
+  it('title, non-empty sections with art and bed tags', async () => {
     const onClose = jest.fn();
     await render(<DayDropdown dateKey="2026-11-18" todayKey="2026-11-26" groups={groups} beds={beds} onClose={onClose} />);
     expect(screen.getByText('Wednesday, 18 November')).toBeTruthy();
-    expect(textOf('count-planted')).toBe('0 planted');
-    expect(textOf('count-watered')).toBe('2 watered');
-    expect(textOf('count-bloomed')).toBe('1 bloomed');
     expect(screen.getByText('Bloomed (1)')).toBeTruthy();
     expect(screen.getByText('Watered (2)')).toBeTruthy();
     expect(screen.queryByText(/^Planted \(/)).toBeNull();
@@ -164,7 +155,6 @@ describe('DayDropdown', () => {
     expect(screen.getByText('Today · Thursday, 26 November')).toBeTruthy();
     expect(screen.getByText('Nothing yet today. Plant or water something.')).toBeTruthy();
     expect(screen.queryByText("Nothing happened this day. That's okay.")).toBeNull();
-    expect(screen.queryByTestId('count-planted')).toBeNull();
   });
 
   it('quiet past day text', async () => {

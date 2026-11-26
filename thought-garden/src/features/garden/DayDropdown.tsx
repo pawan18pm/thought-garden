@@ -26,12 +26,6 @@ const SECTIONS: { key: GroupKey; label: string; dot: string }[] = [
   { key: 'planted', label: 'Planted', dot: flowerColors.green },
 ];
 
-const COUNTS: { key: GroupKey; bg: string }[] = [
-  { key: 'planted', bg: '#F3F9EE' },
-  { key: 'watered', bg: '#EEF4FF' },
-  { key: 'bloomed', bg: '#FFEFF4' },
-];
-
 export function dayTitle(key: string, todayKey: string): string {
   const [y, m, d] = key.split('-').map(Number);
   return `${key === todayKey ? 'Today · ' : ''}${format(new Date(y, m - 1, d), 'EEEE, d MMMM')}`;
@@ -76,14 +70,6 @@ export function DayDropdown({ dateKey, todayKey = dayKey(new Date()), groups, be
           </Text>
         ) : (
           <>
-            <View style={styles.counts}>
-              {COUNTS.map((c) => (
-                <View key={c.key} testID={`count-${c.key}`} style={[styles.count, { backgroundColor: c.bg }]}>
-                  <Text style={styles.countNum}>{groups[c.key].length}</Text>
-                  <Text style={styles.countLabel}>{c.key}</Text>
-                </View>
-              ))}
-            </View>
             {visible.map((s) => (
               <View key={s.key} style={styles.section}>
                 <View style={styles.sectionHead}>
@@ -123,10 +109,6 @@ const styles = StyleSheet.create({
   },
   closeText: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.ink },
   quiet: { marginTop: 8, fontFamily: fonts.body, fontSize: 15, color: colors.muted },
-  counts: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  count: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 14 },
-  countNum: { fontFamily: fonts.titleXBold, fontSize: 26, lineHeight: 28, color: colors.ink },
-  countLabel: { fontFamily: fonts.bodySemi, fontSize: 12, color: colors.ink },
   section: { marginTop: 14 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   dot: { width: 10, height: 10, borderRadius: 999, borderWidth: 1.5, borderColor: colors.ink },

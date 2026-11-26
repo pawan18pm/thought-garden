@@ -7,7 +7,7 @@ import { track } from '@/analytics/analytics';
 import { useGarden } from '@/store/AppProvider';
 import { LogoRow } from '@/ui/Logo';
 import { DayDropdown } from '@/features/garden/DayDropdown';
-import { MonthCard, type MonthPeriod } from '@/features/garden/MonthCard';
+import { MonthCard } from '@/features/garden/MonthCard';
 import { NextUpCard } from '@/features/garden/NextUpCard';
 import { monthBounds, useActivity, useDayDetail } from '@/features/garden/useActivity';
 import { colors, fonts } from '@/ui/tokens';
@@ -20,7 +20,7 @@ export default function Garden() {
   const [cursor, setCursor] = useState({ year: now.getFullYear(), month0: now.getMonth() });
   // Today's dropdown is open by default; tapping the open day closes it.
   const [selected, setSelected] = useState<string | null>(todayKey);
-  const { cells, summary, daysTended, reload } = useActivity(cursor.year, cursor.month0);
+  const { cells, summary, reload } = useActivity(cursor.year, cursor.month0);
   const day = useDayDetail(selected);
   const plants = useGarden((s) => s.plants);
   const beds = useGarden((s) => s.beds);
@@ -62,9 +62,6 @@ export default function Garden() {
   const inMonth = (k: string) => k >= startKey && k <= endKey;
   // Shows the last loaded day until the newly tapped one arrives (no collapse between days).
   const shown = selected !== null && inMonth(selected) && day.loaded && inMonth(day.loaded.key) ? day.loaded : null;
-  const nowMonth = now.getFullYear() * 12 + now.getMonth();
-  const shownMonth = cursor.year * 12 + cursor.month0;
-  const period: MonthPeriod = shownMonth < nowMonth ? 'past' : shownMonth > nowMonth ? 'future' : 'current';
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top + 8 }]}>
@@ -83,8 +80,6 @@ export default function Garden() {
           onDayPress={pick}
           onShift={shift}
           summary={summary}
-          daysTended={daysTended}
-          period={period}
         >
           {shown && (
             <DayDropdown

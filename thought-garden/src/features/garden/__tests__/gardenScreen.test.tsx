@@ -86,7 +86,6 @@ describe('useActivity', () => {
     await act(async () => resolvers[1]({ '2026-02-03': { planted: 0, watered: 0, bloomed: 1, bloomColor: 'blue' } }));
     await act(async () => resolvers[0]({ '2026-01-05': { planted: 1, watered: 0, bloomed: 0 } }));
     expect(result.current.cells).toEqual({ '2026-02-03': { state: 'bloomed', flower: '#7FA8E8' } });
-    expect(result.current.daysTended).toBe(1);
   });
 
   it('watered days with two or more waterings grow taller', async () => {
@@ -124,7 +123,7 @@ describe('Garden screen', () => {
     expect(mockDetail.mock.calls.length).toBe(detailBefore + 1);
   });
 
-  it('month chips show grouped numbers, not double counts', async () => {
+  it('month bloom badge counts each plant once', async () => {
     const a = mkPlant({ id: 'a', bloomedAt: '2026-11-18T10:00:00Z', waterCount: 3 });
     const b = mkPlant({ id: 'b', waterCount: 1 });
     const c = mkPlant({ id: 'c' });
@@ -134,10 +133,8 @@ describe('Garden screen', () => {
       '2026-11-18': { planted: 0, watered: 2, bloomed: 1, bloomColor: 'orange' },
     });
     await render(<Garden />);
-    expect(await screen.findByText('1 bloomed')).toBeTruthy();
-    expect(screen.getByText('1 watered')).toBeTruthy();
-    expect(screen.getByText('1 planted')).toBeTruthy();
-    expect(screen.getByText('Your garden is blooming. 2 days tended this month.')).toBeTruthy();
+    expect(await screen.findByLabelText('1 bloom this month')).toBeTruthy();
+    expect(screen.queryByText(/tended|blooming/)).toBeNull();
     expect(mockDetailRange).toHaveBeenCalledWith('2026-11-01', '2026-11-30');
   });
 
@@ -160,9 +157,6 @@ describe('Garden screen', () => {
     expect(within(region).getByText('Bloomed (1)')).toBeTruthy();
     expect(within(region).getByText('Watered (1)')).toBeTruthy();
     expect(within(region).queryByText(/^Planted \(/)).toBeNull();
-    expect(within(within(region).getByTestId('count-bloomed')).getByText('1')).toBeTruthy();
-    expect(within(within(region).getByTestId('count-watered')).getByText('1')).toBeTruthy();
-    expect(within(within(region).getByTestId('count-planted')).getByText('0')).toBeTruthy();
 
     await fireEvent.press(screen.getByLabelText('November 18, bloomed'));
     expect(screen.queryByText('Wednesday, 18 November')).toBeNull();
@@ -194,16 +188,6 @@ describe('Garden screen', () => {
     // Closing then reopening a day doesn't flash the old one.
     await fireEvent.press(screen.getByLabelText('Close day'));
     expect(screen.queryByText('Tuesday, 10 November')).toBeNull();
-  });
-
-  it('empty month line depends on whether the month is past, current or future', async () => {
-    await render(<Garden />);
-    expect(await screen.findByText('Your garden starts today. Plant something.')).toBeTruthy();
-    await fireEvent.press(screen.getByLabelText('Previous month'));
-    expect(await screen.findByText('A quiet month.')).toBeTruthy();
-    await fireEvent.press(screen.getByLabelText('Next month'));
-    await fireEvent.press(screen.getByLabelText('Next month'));
-    expect(await screen.findByText('Still to come.')).toBeTruthy();
   });
 
   it('future tiles are not pressable', async () => {

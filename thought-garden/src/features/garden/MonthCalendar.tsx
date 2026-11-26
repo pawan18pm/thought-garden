@@ -81,7 +81,7 @@ export function MonthCalendar({ year, month0, cells, todayKey, selectedKey, onDa
       <View style={styles.legend}>
         <View style={[styles.legendItem, { gap: 4 }]}>
           <View style={styles.legendSoil} />
-          <Text style={styles.legendText}>Rest day</Text>
+          <Text style={styles.legendText}>Rest</Text>
         </View>
         <View style={styles.legendItem}>
           <PlantArt stage="seed" size={18} soil={false} />
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   cell: { flex: 1 },
   legend: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
     marginTop: 14,
     paddingTop: 10,
