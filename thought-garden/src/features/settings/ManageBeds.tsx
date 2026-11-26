@@ -87,7 +87,9 @@ export function ManageBeds() {
   const ids = userBeds.map((b) => b.id);
 
   return (
-    <View style={styles.card} accessibilityLabel="Manage beds">
+    <View style={styles.wrap}>
+      <View style={styles.shadow} />
+      <View style={styles.card}>
       <View style={styles.head}>
         <Text style={styles.title} accessibilityRole="header">Manage beds</Text>
         <Text style={styles.meta}>{userBeds.length} of {MAX_BEDS}</Text>
@@ -103,24 +105,16 @@ export function ManageBeds() {
         />
       ))}
       <Text style={styles.hint}>Add or remove beds with Edit beds on the Plant tab.</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: 14,
-    backgroundColor: colors.bg,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 22,
-    // Green offset shadow (0 5px 0 #8ACB72); iOS-only, the app targets iOS.
-    shadowColor: '#8ACB72',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 0,
-  },
+  wrap: { marginBottom: 5 },
+  // Green offset shadow (0 5px 0 #8ACB72) as an absolute view so it renders on Android too.
+  shadow: { position: 'absolute', left: 0, right: 0, top: 5, bottom: -5, borderRadius: 22, backgroundColor: '#8ACB72' },
+  card: { padding: 14, backgroundColor: colors.bg, borderWidth: 2, borderColor: colors.ink, borderRadius: 22 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   title: { fontFamily: fonts.titleXBold, fontSize: 20, color: colors.ink },
   meta: { fontFamily: fonts.bodySemi, fontSize: 13, color: colors.muted },

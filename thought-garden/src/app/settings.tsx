@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { AppState, DevSettings, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
@@ -12,6 +12,8 @@ import { useGarden, useRepos } from '@/store/AppProvider';
 import { PERSONA_LABELS } from '@/domain/personas';
 import type { Persona } from '@/domain/types';
 import { disableReminder, enableReminder } from '@/notifications/reminders';
+import { useOnboardingState } from '@/store/onboardingState';
+import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
 
 const DEFAULT_TIME = '21:00';
 const PRESETS = [
@@ -193,10 +195,17 @@ function ListRows() {
 
 function ResetBlock() {
   const repos = useRepos();
+  const router = useRouter();
+  const load = useGarden((s) => s.load);
   const [ask, setAsk] = useState(false);
   const doReset = async () => {
+    await disableReminder();
     await repos.resetAll();
-    DevSettings.reload();
+    await repos.beds.ensureIdeas();
+    await load();
+    useOnboardingDraft.getState().reset();
+    useOnboardingState.getState().setDone(false);
+    router.replace('/onboarding/welcome');
   };
   if (!ask) {
     return (
@@ -212,7 +221,7 @@ function ResetBlock() {
         <Pressable accessibilityRole="button" accessibilityLabel="Keep my garden" onPress={() => setAsk(false)} style={[styles.confirmBtn, styles.keepBtn]}>
           <Text style={[styles.confirmBtnText, { color: colors.ink }]}>Keep my garden</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Reset" onPress={() => void doReset()} style={[styles.confirmBtn, styles.doBtn]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Reset all data and delete everything" onPress={() => void doReset()} style={[styles.confirmBtn, styles.doBtn]}>
           <Text style={[styles.confirmBtnText, { color: '#FFFFFF' }]}>Reset</Text>
         </Pressable>
       </View>
@@ -247,11 +256,9 @@ export default function Settings() {
         <ListRows />
       </View>
       <Text style={styles.version}>Thought Garden v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
-      {__DEV__ && (
-        <View style={[styles.block, { marginTop: 22 }]}>
-          <ResetBlock />
-        </View>
-      )}
+      <View style={[styles.block, { marginTop: 22 }]}>
+        <ResetBlock />
+      </View>
     </ScrollView>
   );
 }

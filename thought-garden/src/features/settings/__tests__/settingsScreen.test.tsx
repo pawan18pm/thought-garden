@@ -1,9 +1,12 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import Settings from '@/app/settings';
+import { useOnboardingState } from '@/store/onboardingState';
+import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
 
 const mockBack = jest.fn();
-jest.mock('expo-router', () => ({ Stack: { Screen: () => null }, useRouter: () => ({ back: mockBack }) }));
+const mockReplace = jest.fn();
+jest.mock('expo-router', () => ({ Stack: { Screen: () => null }, useRouter: () => ({ back: mockBack, replace: mockReplace }) }));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { version: '1.0.0' } } }));
 jest.mock('@/features/settings/ManageBeds', () => ({ ManageBeds: () => null }));
 jest.mock('@/ui/tokens', () => jest.requireActual('@/ui/tokens'));
@@ -24,10 +27,12 @@ jest.mock('@/notifications/reminders', () => ({
 
 const data: Record<string, string> = { reminder_enabled: '1', reminder_time: '21:00', persona: 'professional' };
 const mockResetAll = jest.fn();
-const mockRepos = { settings: { get: async (k: string) => data[k] ?? null, set: jest.fn() }, resetAll: () => mockResetAll() };
+const mockEnsureIdeas = jest.fn();
+const mockLoad = jest.fn();
+const mockRepos = { settings: { get: async (k: string) => data[k] ?? null, set: jest.fn() }, beds: { ensureIdeas: () => mockEnsureIdeas() }, resetAll: () => mockResetAll() };
 jest.mock('@/store/AppProvider', () => ({
   useRepos: () => mockRepos,
-  useGarden: (sel: (s: unknown) => unknown) => sel({ setAnalytics: jest.fn() }),
+  useGarden: (sel: (s: unknown) => unknown) => sel({ setAnalytics: jest.fn(), load: () => mockLoad() }),
 }));
 
 it('changing time while permission was revoked turns the switch off and shows the banner', async () => {
@@ -65,8 +70,15 @@ it('Reset asks to confirm before wiping', async () => {
   expect(mockResetAll).not.toHaveBeenCalled();
   expect(screen.getByText("Delete every bed, thought and bloom? This can't be undone.")).toBeTruthy();
   await fireEvent.press(screen.getByLabelText('Keep my garden'));
-  expect(screen.queryByLabelText('Reset')).toBeNull();
+  expect(screen.queryByLabelText('Reset all data and delete everything')).toBeNull();
   await fireEvent.press(screen.getByLabelText('Reset all data'));
-  await fireEvent.press(screen.getByLabelText('Reset'));
-  await waitFor(() => expect(mockResetAll).toHaveBeenCalledTimes(1));
+  useOnboardingState.getState().setDone(true);
+  useOnboardingDraft.getState().setPersona('professional');
+  await fireEvent.press(screen.getByLabelText('Reset all data and delete everything'));
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/onboarding/welcome'));
+  expect(mockResetAll).toHaveBeenCalledTimes(1);
+  expect(mockEnsureIdeas).toHaveBeenCalled();
+  expect(mockLoad).toHaveBeenCalled();
+  expect(useOnboardingState.getState().done).toBe(false);
+  expect(useOnboardingDraft.getState().persona).toBeNull();
 });

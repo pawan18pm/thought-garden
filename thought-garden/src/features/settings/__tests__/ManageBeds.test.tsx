@@ -1,6 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import { ManageBeds } from '../ManageBeds';
 
 const mockState: Record<string, unknown> = {};
@@ -8,10 +7,8 @@ jest.mock('@/store/AppProvider', () => ({
   useGarden: (sel: (s: unknown) => unknown) => sel(mockState),
 }));
 
-const removeBed = jest.fn();
 const reorderBeds = jest.fn();
 const renameBed = jest.fn();
-const addBed = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -21,11 +18,9 @@ beforeEach(() => {
       { id: 'b', name: 'Beta', color: 'orange', isIdeas: false },
       { id: 'i', name: 'Ideas', color: 'ideas', isIdeas: true },
     ],
-    removeBed,
     reorderBeds,
     renameBed,
     recolorBed: jest.fn(),
-    addBed,
     plants: [],
   });
 });
