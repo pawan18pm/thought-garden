@@ -7,90 +7,93 @@ import { colors, fonts } from '@/ui/tokens';
 import { SoilTile } from './SoilTile';
 import type { DayCell } from './useActivity';
 
-interface Props {
+export interface MonthCalendarProps {
   year: number;
   month0: number;
   cells: Record<string, DayCell>;
   todayKey: string;
+  selectedKey: string | null;
   onDayPress: (key: string) => void;
-  onShift: (delta: number) => void;
 }
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-export function MonthCalendar({ year, month0, cells, todayKey, onDayPress, onShift }: Props) {
+function labelFor(key: string, cell: DayCell | undefined, isToday: boolean): string {
+  const [y, m, d] = key.split('-').map(Number);
+  const state = cell?.state ?? 'empty';
+  return `${format(new Date(y, m - 1, d), 'MMMM d')}${isToday ? ', today' : ''}${state === 'empty' ? '' : `, ${state}`}`;
+}
+
+/** Weekday header, soil-tile grid and legend. Past days and today are pressable; future days are not. */
+export function MonthCalendar({ year, month0, cells, todayKey, selectedKey, onDayPress }: MonthCalendarProps) {
   const grid = monthGrid(year, month0);
   const rows: (string | null)[][] = [];
-  for (let i = 0; i < 42; i += 7) rows.push(grid.slice(i, i + 7));
+  for (let i = 0; i < 42; i += 7) {
+    const row = grid.slice(i, i + 7);
+    if (row.some(Boolean)) rows.push(row);
+  }
   return (
-    <View style={styles.shadow}>
-      <View style={styles.card}>
-        <View style={styles.head}>
-          <Pressable onPress={() => onShift(-1)} accessibilityRole="button" accessibilityLabel="Previous month" style={styles.arrow}>
-            <Text style={styles.arrowText}>‹</Text>
-          </Pressable>
-          <Text style={styles.title}>{format(new Date(year, month0, 1), 'MMMM yyyy')}</Text>
-          <Pressable onPress={() => onShift(1)} accessibilityRole="button" accessibilityLabel="Next month" style={styles.arrow}>
-            <Text style={styles.arrowText}>›</Text>
-          </Pressable>
-        </View>
-        <View style={[styles.row, { marginTop: 8 }]}>
-          {WEEKDAYS.map((d, i) => (
-            <Text key={i} style={styles.weekday}>
-              {d}
-            </Text>
-          ))}
-        </View>
+    <View>
+      <View style={[styles.row, { marginTop: 12 }]}>
+        {WEEKDAYS.map((d, i) => (
+          <Text key={i} style={styles.weekday}>
+            {d}
+          </Text>
+        ))}
+      </View>
+      <View style={styles.grid}>
         {rows.map((row, r) => (
-          <View key={r} style={[styles.row, { marginTop: 4 }]}>
+          <View key={r} style={styles.row}>
             {row.map((key, c) => {
-              if (!key) return <View key={`pad-${r}-${c}`} testID={`cell-pad-${r}-${c}`} style={styles.cell} />;
+              if (!key) return <View key={`pad-${r}-${c}`} style={styles.cell} />;
               const cell = cells[key];
-              const state = cell?.state ?? 'empty';
               const isToday = key === todayKey;
               const future = key > todayKey;
-              const [y, m, d] = key.split('-').map(Number);
+              const selected = key === selectedKey;
+              const dayNum = Number(key.slice(8));
+              const tile = (
+                <SoilTile dateKey={key} cell={cell} dayNum={dayNum} isToday={isToday} future={future} selected={selected} />
+              );
+              if (future) {
+                return (
+                  <View key={key} testID={`cell-${key}`} style={styles.cell}>
+                    {tile}
+                  </View>
+                );
+              }
               return (
                 <Pressable
                   key={key}
                   testID={`cell-${key}`}
-                  disabled={future}
                   onPress={() => onDayPress(key)}
                   accessibilityRole="button"
-                  accessibilityLabel={`${format(new Date(y, m - 1, d), 'MMMM d')}, ${state}`}
-                  accessibilityState={{ selected: isToday, disabled: future }}
+                  accessibilityLabel={labelFor(key, cell, isToday)}
+                  accessibilityState={{ expanded: selected }}
                   style={styles.cell}
                 >
-                  <SoilTile
-                    size="month"
-                    cell={cell}
-                    dayNum={d}
-                    isToday={isToday}
-                    future={future}
-                    artTestID={`day-${key}-${state}`}
-                  />
+                  {tile}
                 </Pressable>
               );
             })}
           </View>
         ))}
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={styles.legendSoil} />
-            <Text style={styles.legendText}>Nothing</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <PlantArt stage="seed" size={16} />
-            <Text style={styles.legendText}>Planted</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <PlantArt stage="watered" size={16} />
-            <Text style={styles.legendText}>Watered</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <PlantArt stage="bloom" size={16} />
-            <Text style={styles.legendText}>Bloomed</Text>
-          </View>
+      </View>
+      <View style={styles.legend}>
+        <View style={[styles.legendItem, { gap: 4 }]}>
+          <View style={styles.legendSoil} />
+          <Text style={styles.legendText}>Rest day</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <PlantArt stage="seed" size={18} />
+          <Text style={styles.legendText}>Planted</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <PlantArt stage="watered" size={18} />
+          <Text style={styles.legendText}>Watered</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <PlantArt stage="bloom" size={18} />
+          <Text style={styles.legendText}>Bloomed</Text>
         </View>
       </View>
     </View>
@@ -98,43 +101,28 @@ export function MonthCalendar({ year, month0, cells, todayKey, onDayPress, onShi
 }
 
 const styles = StyleSheet.create({
-  shadow: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    marginTop: 16,
-    shadowColor: colors.ink,
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 0,
-  },
-  card: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: colors.ink, borderRadius: 22, paddingTop: 10, paddingHorizontal: 12, paddingBottom: 12 },
-  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontFamily: fonts.titleBold, fontSize: 20, color: colors.ink },
-  arrow: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.paper,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 999,
-  },
-  arrowText: { fontFamily: fonts.titleBold, fontSize: 20, color: colors.ink },
-  row: { flexDirection: 'row', gap: 4 },
-  weekday: { flex: 1, textAlign: 'center', fontFamily: fonts.bodySemi, fontSize: 11, color: colors.muted },
+  row: { flexDirection: 'row', gap: 5 },
+  grid: { gap: 5, marginTop: 6 },
+  weekday: { flex: 1, textAlign: 'center', fontFamily: fonts.bodySemi, fontSize: 12, color: colors.muted },
   cell: { flex: 1 },
   legend: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10,
-    paddingTop: 8,
-    paddingHorizontal: 6,
+    alignItems: 'center',
+    marginTop: 14,
+    paddingTop: 10,
+    paddingHorizontal: 8,
     borderTopWidth: 2,
-    borderTopColor: '#EFE7DA',
+    borderTopColor: colors.line,
   },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  legendSoil: { width: 14, height: 6, marginRight: 2, backgroundColor: colors.soil, borderWidth: 1.5, borderColor: colors.ink, borderRadius: 2 },
-  legendText: { fontFamily: fonts.bodySemi, fontSize: 11, color: colors.ink },
+  legendSoil: {
+    width: 18,
+    height: 7,
+    backgroundColor: colors.restSoil,
+    borderWidth: 1.5,
+    borderColor: colors.restSoilLine,
+    borderRadius: 3,
+  },
+  legendText: { fontFamily: fonts.bodySemi, fontSize: 12, color: '#4A463F' },
 });

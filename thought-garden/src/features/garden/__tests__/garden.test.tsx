@@ -1,149 +1,154 @@
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { MonthCalendar } from '../MonthCalendar';
-import { WeekCard } from '../WeekCard';
-import DayDetail from '../../../app/garden/[date]';
+import { MonthCard, monthLine } from '../MonthCard';
+import { DayDropdown } from '../DayDropdown';
+import { NextUpCard, nextUpTitle } from '../NextUpCard';
 import { bedA, bedB, ideas, mkPlant } from '../../plant/__fixtures__/fixtures';
-
-jest.mock('react-native-reanimated', () => {
-  const { View } = require('react-native');
-  return { __esModule: true, default: { View } };
-});
 
 const mockArt = jest.fn();
 jest.mock('@/ui/PlantArt', () => ({ PlantArt: (p: unknown) => { mockArt(p); return null; } }));
 
-const mockParams: { date?: string } = {};
-const mockBack = jest.fn();
-jest.mock('expo-router', () => ({
-  Stack: { Screen: () => null },
-  useRouter: () => ({ back: mockBack }),
-  useLocalSearchParams: () => mockParams,
-  useFocusEffect: () => {},
-}));
-
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
-
-const mockDetail = jest.fn();
-const mockState: { beds: unknown[] } = { beds: [] };
-jest.mock('@/store/AppProvider', () => ({
-  useGarden: (sel: (s: unknown) => unknown) => sel(mockState),
-  useRepos: () => ({ activity: { detail: (k: string) => mockDetail(k) } }),
-}));
-jest.mock('@/analytics/analytics', () => ({ track: jest.fn() }));
+const textOf = (id: string) =>
+  within(screen.getByTestId(id))
+    .getAllByText(/.+/)
+    .map((n) => n.props.children)
+    .join(' ');
 
 describe('MonthCalendar', () => {
-  const base = { year: 2026, month0: 10, todayKey: '2026-11-20', onShift: () => {} };
-  it('renders 42 cells, flower art, today selected, ignores future, shows legend', async () => {
+  const base = { year: 2026, month0: 10, todayKey: '2026-11-26', selectedKey: null as string | null };
+
+  beforeEach(() => mockArt.mockClear());
+
+  it('renders one tile per day, legend, and future tiles are not pressable', async () => {
     const onDayPress = jest.fn();
-    await render(
-      <MonthCalendar {...base} cells={{ '2026-11-18': { state: 'bloomed', flower: '#F2A36B' } }} onDayPress={onDayPress} />,
-    );
-    expect(screen.getAllByTestId(/^cell-/)).toHaveLength(42);
-    expect(screen.getByTestId('day-2026-11-18-bloomed')).toBeTruthy();
-    expect(screen.getByLabelText('November 20, empty').props.accessibilityState).toMatchObject({ selected: true });
-    await fireEvent.press(screen.getByLabelText('November 18, bloomed'));
-    expect(onDayPress).toHaveBeenCalledWith('2026-11-18');
-    await fireEvent.press(screen.getByLabelText('November 25, empty'));
-    expect(onDayPress).toHaveBeenCalledTimes(1);
-    for (const t of ['Nothing', 'Planted', 'Watered', 'Bloomed']) expect(screen.getByText(t)).toBeTruthy();
-    expect(screen.getByText('November 2026')).toBeTruthy();
+    await render(<MonthCalendar {...base} cells={{}} onDayPress={onDayPress} />);
+    expect(screen.getAllByTestId(/^cell-2026-/)).toHaveLength(30);
+    for (const t of ['Rest day', 'Planted', 'Watered', 'Bloomed']) expect(screen.getByText(t)).toBeTruthy();
+
+    const future = screen.getByTestId('cell-2026-11-27');
+    expect(future.props.accessibilityRole).not.toBe('button');
+    await fireEvent.press(future);
+    expect(onDayPress).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByLabelText('November 20'));
+    expect(onDayPress).toHaveBeenCalledWith('2026-11-20');
   });
-  it('arrows call onShift', async () => {
+
+  it('active day art: seed / sprout / growing / flower with sparkle on bloom days', async () => {
+    await render(
+      <MonthCalendar
+        {...base}
+        cells={{
+          '2026-11-02': { state: 'planted' },
+          '2026-11-03': { state: 'watered' },
+          '2026-11-04': { state: 'watered', growing: true },
+          '2026-11-05': { state: 'bloomed', flower: '#F2A36B' },
+        }}
+        onDayPress={() => {}}
+      />,
+    );
+    const stages = mockArt.mock.calls.map(([p]) => p as { stage: string; size: number; flowerColor?: string });
+    const tileArt = stages.filter((p) => p.size === 30);
+    expect(tileArt.map((p) => p.stage)).toEqual(['seed', 'watered', 'growing', 'bloom']);
+    expect(tileArt[3].flowerColor).toBe('#F2A36B');
+    expect(screen.getByTestId('sparkle-2026-11-05')).toBeTruthy();
+    expect(screen.queryByTestId('sparkle-2026-11-04')).toBeNull();
+    expect(screen.getByLabelText('November 5, bloomed')).toBeTruthy();
+    expect(screen.getByLabelText('November 26, today')).toBeTruthy();
+  });
+
+  it('selected tile reports expanded', async () => {
+    await render(<MonthCalendar {...base} selectedKey="2026-11-20" cells={{}} onDayPress={() => {}} />);
+    expect(screen.getByLabelText('November 20').props.accessibilityState).toMatchObject({ expanded: true });
+    expect(screen.getByLabelText('November 21').props.accessibilityState).toMatchObject({ expanded: false });
+  });
+});
+
+describe('MonthCard', () => {
+  const cal = { year: 2026, month0: 10, todayKey: '2026-11-26', selectedKey: null, cells: {}, onDayPress: () => {} };
+
+  it('chips, title and arrows', async () => {
     const onShift = jest.fn();
-    await render(<MonthCalendar {...base} onShift={onShift} cells={{}} onDayPress={() => {}} />);
+    await render(<MonthCard {...cal} onShift={onShift} summary={{ bloomed: 2, watered: 3, planted: 4 }} daysTended={5} />);
+    expect(screen.getByText('November 2026')).toBeTruthy();
+    expect(screen.getByText('2 bloomed')).toBeTruthy();
+    expect(screen.getByText('3 watered')).toBeTruthy();
+    expect(screen.getByText('4 planted')).toBeTruthy();
+    expect(screen.getByText('Your garden is blooming. 5 days tended this month.')).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Previous month'));
     await fireEvent.press(screen.getByLabelText('Next month'));
     expect(onShift).toHaveBeenNthCalledWith(1, -1);
     expect(onShift).toHaveBeenNthCalledWith(2, 1);
   });
+
+  it('month line copy', () => {
+    expect(monthLine({ bloomed: 1, watered: 0, planted: 0 }, 1)).toBe('Your garden is blooming. 1 day tended this month.');
+    expect(monthLine({ bloomed: 0, watered: 1, planted: 2 }, 2)).toBe('Nice start. 2 days tended this month.');
+    expect(monthLine({ bloomed: 0, watered: 0, planted: 0 }, 0)).toBe('Your garden starts today. Plant something.');
+  });
 });
 
-describe('WeekCard', () => {
-  it('shows copy and 7 tiles Mon-Sun; press calls onDayPress, future disabled', async () => {
-    const onDayPress = jest.fn();
+describe('NextUpCard', () => {
+  it('copy for thirsty / ready / none', () => {
+    expect(nextUpTitle(1, 0)).toBe('Next up: 1 thought is thirsty');
+    expect(nextUpTitle(3, 2)).toBe('Next up: 3 thoughts are thirsty');
+    expect(nextUpTitle(0, 2)).toBe('Next up: 2 ready to bloom');
+    expect(nextUpTitle(0, 0)).toBe('Next up: plant a new thought');
+  });
+
+  it('renders sub and calls onPress', async () => {
+    const onPress = jest.fn();
+    await render(<NextUpCard thirsty={0} ready={1} onPress={onPress} />);
+    expect(screen.getByText('Next up: 1 ready to bloom')).toBeTruthy();
+    expect(screen.getByText('Go to the Plant tab')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button'));
+    expect(onPress).toHaveBeenCalled();
+  });
+});
+
+describe('DayDropdown', () => {
+  const beds = [bedA, bedB, ideas];
+  const groups = {
+    bloomed: [mkPlant({ id: 'a', text: 'Bloomy', bedId: 'bB', bloomedAt: '2026-11-18T10:00:00Z', waterCount: 3 })],
+    watered: [mkPlant({ id: 'b', text: 'Watery', waterCount: 1 }), mkPlant({ id: 'c', text: 'Tall', waterCount: 2 })],
+    planted: [],
+  };
+
+  beforeEach(() => mockArt.mockClear());
+
+  it('title, count tiles, non-empty sections with art and bed tags', async () => {
+    const onClose = jest.fn();
+    await render(<DayDropdown dateKey="2026-11-18" todayKey="2026-11-26" groups={groups} beds={beds} onClose={onClose} />);
+    expect(screen.getByText('Wednesday, 18 November')).toBeTruthy();
+    expect(textOf('count-planted')).toBe('0 planted');
+    expect(textOf('count-watered')).toBe('2 watered');
+    expect(textOf('count-bloomed')).toBe('1 bloomed');
+    expect(screen.getByText('Bloomed (1)')).toBeTruthy();
+    expect(screen.getByText('Watered (2)')).toBeTruthy();
+    expect(screen.queryByText(/^Planted \(/)).toBeNull();
+    expect(screen.getByText('Bloomy')).toBeTruthy();
+    expect(screen.getByText('DSA')).toBeTruthy();
+    expect(screen.getAllByText('Interview')).toHaveLength(2);
+    const art = mockArt.mock.calls.map(([p]) => p as { stage: string; size: number; flowerColor?: string });
+    expect(art.map((p) => p.stage)).toEqual(['bloom', 'watered', 'growing']);
+    expect(art[0]).toMatchObject({ size: 32, flowerColor: '#F2A36B' });
+    await fireEvent.press(screen.getByLabelText('Close day'));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('today title prefix and quiet day text', async () => {
     await render(
-      <WeekCard
-        blooms={5}
-        waters={12}
-        todayKey="2026-11-20"
-        cells={{ '2026-11-16': { state: 'bloomed', flower: '#7FA8E8' } }}
-        onDayPress={onDayPress}
+      <DayDropdown
+        dateKey="2026-11-26"
+        todayKey="2026-11-26"
+        groups={{ bloomed: [], watered: [], planted: [] }}
+        beds={beds}
+        onClose={() => {}}
       />,
     );
-    expect(screen.getByText('5 bloomed · 12 waters')).toBeTruthy();
-    expect(screen.getAllByTestId(/^week-/)).toHaveLength(7);
-    expect(screen.getByTestId('week-2026-11-16')).toBeTruthy();
-    expect(screen.getByTestId('week-2026-11-22')).toBeTruthy();
-    expect(within(screen.getByTestId('week-2026-11-16')).getByTestId('day-2026-11-16-bloomed')).toBeTruthy();
-    await fireEvent.press(screen.getByTestId('week-2026-11-16'));
-    expect(onDayPress).toHaveBeenCalledWith('2026-11-16');
-    await fireEvent.press(screen.getByTestId('week-2026-11-22'));
-    expect(onDayPress).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('Day detail', () => {
-  beforeAll(() => {
-    mockState.beds = [bedA, ideas];
-  });
-  beforeEach(() => {
-    mockDetail.mockReset();
-    mockBack.mockReset();
-  });
-  it('title, summary, section order, bed tag', async () => {
-    mockParams.date = '2026-11-18';
-    mockDetail.mockResolvedValue({
-      bloomed: [mkPlant({ id: 'a', text: 'Bloomy' }), mkPlant({ id: 'c', text: 'Ideay', bedId: 'bI' })],
-      watered: [mkPlant({ id: 'b', text: 'Watery' })],
-      planted: [],
-    });
-    await render(<DayDetail />);
-    expect(await screen.findByText('Bloomy')).toBeTruthy();
-    expect(screen.getByText('Wed, 18 Nov')).toBeTruthy();
-    expect(screen.getByText('2 bloomed · 1 watered')).toBeTruthy();
-    expect(screen.getAllByText('Interview')).toHaveLength(2);
-    expect(screen.getByText('Ideas')).toBeTruthy();
-    expect(screen.queryByText('Planted')).toBeNull();
-    const titles = screen.getAllByTestId(/^section-/).map((n) => n.props.testID);
-    expect(titles).toEqual(['section-bloomed', 'section-watered']);
-  });
-  it('header tile flower uses the earliest bloom of the day', async () => {
-    mockState.beds = [bedA, bedB, ideas];
-    mockParams.date = '2026-11-18';
-    mockArt.mockClear();
-    mockDetail.mockResolvedValue({
-      // detail() orders by created_at DESC: the later-created plant (orange bed) bloomed first.
-      bloomed: [
-        mkPlant({ id: 'x', bedId: 'bA', bloomedAt: '2026-11-18T15:00:00+05:30' }),
-        mkPlant({ id: 'y', bedId: 'bB', text: 'Early', bloomedAt: '2026-11-18T09:00:00+05:30' }),
-      ],
-      watered: [],
-      planted: [],
-    });
-    await render(<DayDetail />);
-    await screen.findByText('Early');
-    expect(mockArt).toHaveBeenCalledWith(expect.objectContaining({ stage: 'bloom', size: 52, flowerColor: '#F2A36B' }));
-    mockState.beds = [bedA, ideas];
-  });
-  it('gentle empty message', async () => {
-    mockParams.date = '2026-11-18';
-    mockDetail.mockResolvedValue({ bloomed: [], watered: [], planted: [] });
-    await render(<DayDetail />);
-    expect(await screen.findByText("Nothing happened this day. That's okay.")).toBeTruthy();
-  });
-  it('back pill calls router.back', async () => {
-    mockParams.date = '2026-11-18';
-    mockDetail.mockResolvedValue({ bloomed: [], watered: [], planted: [] });
-    await render(<DayDetail />);
-    await fireEvent.press(screen.getByLabelText('Back to Garden'));
-    expect(mockBack).toHaveBeenCalled();
-    expect(screen.getByText('‹ Garden')).toBeTruthy();
-  });
-  it('invalid date does not crash', async () => {
-    mockParams.date = 'garbage';
-    await render(<DayDetail />);
-    expect(await screen.findByText("Nothing happened this day. That's okay.")).toBeTruthy();
-    expect(mockDetail).not.toHaveBeenCalled();
+    expect(screen.getByText('Today · Thursday, 26 November')).toBeTruthy();
+    expect(screen.getByText("Nothing happened this day. That's okay.")).toBeTruthy();
+    expect(screen.queryByTestId('count-planted')).toBeNull();
   });
 });
