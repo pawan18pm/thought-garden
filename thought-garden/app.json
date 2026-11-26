@@ -8,7 +8,8 @@
     "scheme": "thoughtgarden",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {}
     },
     "android": {
       "adaptiveIcon": {
@@ -49,6 +50,21 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {
+        "headers": {
+          "Cross-Origin-Embedder-Policy": "credentialless",
+          "Cross-Origin-Opener-Policy": "same-origin"
+        },
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "4f44fba6-69fe-4723-8702-c9d32d9a9b79"
+      }
+    },
+    "owner": "pawan.18pm"
   }
 }
