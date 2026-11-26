@@ -53,8 +53,6 @@ export function createRepos(db: Db, newId: () => string, now: () => string) {
   const plantsWhere = async (where: string, params: unknown[] = []): Promise<Plant[]> =>
     (await db.all<PlantRow>(`${PLANT_SELECT} WHERE p.deleted_at IS NULL AND ${where} ORDER BY p.created_at DESC`, params)).map(toPlant);
 
-  const countOf = async (sql: string, params: unknown[]): Promise<number> =>
-    (await db.first<{ c: number }>(sql, params))?.c ?? 0;
 
   const beds = {
     async list(): Promise<Bed[]> {
@@ -87,9 +85,6 @@ export function createRepos(db: Db, newId: () => string, now: () => string) {
     },
     async setColor(id: string, color: BedColorKey): Promise<void> {
       await db.run('UPDATE beds SET color = ? WHERE id = ? AND is_ideas = 0', [color, id]);
-    },
-    async setFolded(id: string, folded: boolean): Promise<void> {
-      await db.run('UPDATE beds SET folded = ? WHERE id = ?', [folded ? 1 : 0, id]);
     },
     async reorder(ids: string[]): Promise<void> {
       for (let i = 0; i < ids.length; i++) {
@@ -161,16 +156,6 @@ export function createRepos(db: Db, newId: () => string, now: () => string) {
   };
 
   const activity = {
-    async day(key: string): Promise<DayActivity> {
-      return {
-        planted: await countOf('SELECT COUNT(*) AS c FROM plants WHERE deleted_at IS NULL AND substr(created_at, 1, 10) = ?', [key]),
-        watered: await countOf(
-          'SELECT COUNT(*) AS c FROM waterings w JOIN plants p ON p.id = w.plant_id WHERE p.deleted_at IS NULL AND substr(w.watered_at, 1, 10) = ?',
-          [key],
-        ),
-        bloomed: await countOf('SELECT COUNT(*) AS c FROM plants WHERE deleted_at IS NULL AND substr(bloomed_at, 1, 10) = ?', [key]),
-      };
-    },
     async range(startKey: string, endKey: string): Promise<Record<string, DayActivity & { bloomColor?: BedColorKey | 'ideas' }>> {
       const out: Record<string, DayActivity & { bloomColor?: BedColorKey | 'ideas' }> = {};
       const bump = (rows: { d: string; c: number }[], field: keyof DayActivity) => {
@@ -209,23 +194,6 @@ export function createRepos(db: Db, newId: () => string, now: () => string) {
         if (out[r.d] && out[r.d].bloomColor === undefined) out[r.d].bloomColor = r.color as BedColorKey | 'ideas';
       }
       return out;
-    },
-    async month(year: number, month0: number): Promise<Record<string, DayActivity & { bloomColor?: BedColorKey | 'ideas' }>> {
-      const prefix = `${year}-${String(month0 + 1).padStart(2, '0')}-`;
-      const last = new Date(year, month0 + 1, 0).getDate();
-      return activity.range(`${prefix}01`, `${prefix}${String(last).padStart(2, '0')}`);
-    },
-    async week(startKey: string, endKey: string): Promise<{ blooms: number; waters: number }> {
-      return {
-        blooms: await countOf(
-          'SELECT COUNT(*) AS c FROM plants WHERE deleted_at IS NULL AND bloomed_at IS NOT NULL AND substr(bloomed_at, 1, 10) BETWEEN ? AND ?',
-          [startKey, endKey],
-        ),
-        waters: await countOf(
-          'SELECT COUNT(*) AS c FROM waterings w JOIN plants p ON p.id = w.plant_id WHERE p.deleted_at IS NULL AND substr(w.watered_at, 1, 10) BETWEEN ? AND ?',
-          [startKey, endKey],
-        ),
-      };
     },
     async detail(key: string): Promise<{ bloomed: Plant[]; watered: Plant[]; planted: Plant[] }> {
       return {

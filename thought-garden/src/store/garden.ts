@@ -16,7 +16,6 @@ export interface GardenState {
   beds: Bed[];
   plants: Plant[];
   bloomedToday: Plant[];
-  lastBedId: string | null;
   ready: boolean;
   load(): Promise<void>;
   plant(text: string, bedId?: string, priority?: Priority, source?: PlantSource): Promise<Plant | null>;
@@ -28,7 +27,6 @@ export interface GardenState {
   addBed(name: string, color?: BedColorKey): Promise<Bed>;
   renameBed(id: string, name: string): Promise<void>;
   recolorBed(id: string, color: BedColorKey): Promise<void>;
-  toggleFold(id: string): Promise<void>;
   reorderBeds(ids: string[]): Promise<void>;
   removeBed(id: string, opts?: { moveTo?: string; deleteThoughts?: boolean }): Promise<void>;
   setAnalytics(on: boolean): Promise<void>;
@@ -56,7 +54,6 @@ export function createGardenStore(repos: Repos) {
       beds: [],
       plants: [],
       bloomedToday: [],
-      lastBedId: null,
       ready: false,
       load: refresh,
 
@@ -64,9 +61,8 @@ export function createGardenStore(repos: Repos) {
         const clean = validateThought(text);
         if (clean === null) return null;
         const ideas = get().beds.find((b) => b.isIdeas) ?? (await repos.beds.ensureIdeas());
-        const target = bedId ?? get().lastBedId ?? ideas.id;
+        const target = bedId ?? ideas.id;
         const created = await repos.plants.create({ text: clean, bedId: target, priority });
-        if (bedId) set({ lastBedId: bedId });
         await refresh();
         track('plant_created', {
           has_priority: priority !== null,
@@ -158,13 +154,6 @@ export function createGardenStore(repos: Repos) {
         await refreshBeds();
       },
 
-      async toggleFold(id) {
-        const b = get().beds.find((x) => x.id === id);
-        if (!b) return;
-        await repos.beds.setFolded(id, !b.folded);
-        await refresh();
-      },
-
       async reorderBeds(ids) {
         await repos.beds.reorder(ids);
         await refresh();
@@ -182,7 +171,6 @@ export function createGardenStore(repos: Repos) {
           await repos.plants.removeInBed(id);
         }
         await repos.beds.remove(id);
-        if (get().lastBedId === id) set({ lastBedId: null });
         await refresh();
         track('bed_deleted', {});
       },

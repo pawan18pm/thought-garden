@@ -1,4 +1,4 @@
-import { addDays, endOfWeek, format, formatISO, startOfWeek } from 'date-fns';
+import { addDays, format, formatISO } from 'date-fns';
 
 export function dayKey(d: Date): string {
   return format(d, 'yyyy-MM-dd');
@@ -6,13 +6,6 @@ export function dayKey(d: Date): string {
 
 export function nowIso(): string {
   return formatISO(new Date());
-}
-
-export function weekRange(now: Date): { startKey: string; endKey: string } {
-  return {
-    startKey: dayKey(startOfWeek(now, { weekStartsOn: 1 })),
-    endKey: dayKey(endOfWeek(now, { weekStartsOn: 1 })),
-  };
 }
 
 export function monthGrid(year: number, month0: number): (string | null)[] {

@@ -9,10 +9,9 @@ import { useGarden } from '@/store/AppProvider';
 import { MAX_THOUGHT_LENGTH, validateThought } from '@/domain/validate';
 import { orderBeds } from '@/domain/ordering';
 import { BLOOM_AT_WATERS, canBloomNow, stageOf } from '@/domain/stages';
-import type { Plant } from '@/domain/types';
+import type { Plant, Priority } from '@/domain/types';
 import { bedColors, colors, fonts } from '@/ui/tokens';
 import { Chip } from './Chip';
-import { PRIORITY_CHIPS } from './PlantingSheet';
 
 interface Props {
   plantId: string | null;
@@ -20,6 +19,12 @@ interface Props {
 }
 
 const PRIORITY_NAME = { 3: 'high', 2: 'medium', 1: 'low' } as const;
+
+export const PRIORITY_CHIPS: { label: string; value: Priority }[] = [
+  { label: '▲▲', value: 3 },
+  { label: '▲', value: 2 },
+  { label: '–', value: 1 },
+];
 
 export function waterCopy(n: number): string {
   if (n === 0) return 'not watered yet';

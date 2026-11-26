@@ -33,15 +33,14 @@ describe('garden store', () => {
     expect(store.getState().plants).toHaveLength(0);
   });
 
-  it('defaults to Ideas, then follows lastBedId', async () => {
+  it('plants into the given bed, or Ideas when none is given', async () => {
     const { store, ideas } = await setup();
     const a = await store.getState().addBed('A');
     const p1 = await store.getState().plant('Learn SQL');
     expect(p1?.bedId).toBe(ideas.id);
-    await store.getState().plant('x', a.id);
-    const p2 = await store.getState().plant('y');
+    const p2 = await store.getState().plant('x', a.id);
     expect(p2?.bedId).toBe(a.id);
-    expect(store.getState().plantsInBed(a.id)).toHaveLength(2);
+    expect(store.getState().plantsInBed(a.id)).toHaveLength(1);
   });
 
   it('bloom and unbloom move plants between lists', async () => {

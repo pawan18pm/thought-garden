@@ -13,6 +13,10 @@ async function setup() {
   return createRepos(db, () => `id${++n}`, () => clock);
 }
 
+/** Waterings on one day, via the range query the app uses. */
+const watered = async (r: Awaited<ReturnType<typeof setup>>, key: string) =>
+  (await r.activity.range(key, key))[key]?.watered ?? 0;
+
 describe('repos', () => {
   it('migrate is idempotent', async () => {
     const db = createNodeDb();
@@ -98,17 +102,16 @@ describe('repos', () => {
     expect((await r.beds.list()).map((x) => x.name)).toEqual(['B', 'A', 'Ideas']);
   });
 
-  it('rename/setColor/setFolded work, no-op on Ideas', async () => {
+  it('rename/setColor work, no-op on Ideas', async () => {
     const r = await setup();
     const ideas = await r.beds.ensureIdeas();
     const a = await r.beds.create('A');
     await r.beds.rename(a.id, 'Z');
     await r.beds.setColor(a.id, 'orange');
-    await r.beds.setFolded(a.id, true);
     await r.beds.rename(ideas.id, 'X');
     await r.beds.setColor(ideas.id, 'blue');
     const list = await r.beds.list();
-    expect(list[0]).toMatchObject({ name: 'Z', color: 'orange', folded: true });
+    expect(list[0]).toMatchObject({ name: 'Z', color: 'orange' });
     expect(list[1]).toMatchObject({ name: 'Ideas', color: 'ideas' });
   });
 
@@ -132,7 +135,7 @@ describe('repos', () => {
     expect(await r.beds.list()).toHaveLength(1);
   });
 
-  it('plants.remove hides from listActive, day and detail', async () => {
+  it('plants.remove hides from listActive, range and detail', async () => {
     const r = await setup();
     const b = await r.beds.create('B');
     const p = await r.plants.create({ text: '1', bedId: b.id, priority: null });
@@ -140,10 +143,8 @@ describe('repos', () => {
     await r.plants.bloom(p.id);
     await r.plants.remove(p.id);
     expect(await r.plants.listActive()).toEqual([]);
-    expect(await r.activity.day('2026-11-19')).toEqual({ planted: 0, watered: 0, bloomed: 0 });
     expect(await r.activity.detail('2026-11-19')).toEqual({ bloomed: [], watered: [], planted: [] });
-    expect(await r.activity.week('2026-11-16', '2026-11-22')).toEqual({ blooms: 0, waters: 0 });
-    expect(await r.activity.month(2026, 10)).toEqual({});
+    expect(await r.activity.range('2026-11-01', '2026-11-30')).toEqual({});
     expect(await r.plants.bloomedOn('2026-11-19')).toEqual([]);
   });
 
@@ -162,15 +163,15 @@ describe('repos', () => {
     const p = await r.plants.create({ text: '1', bedId: b.id, priority: null });
     clock = '2026-11-19T23:59:00+05:30';
     await r.plants.water(p.id);
-    expect((await r.activity.day('2026-11-19')).watered).toBe(1);
-    expect((await r.activity.day('2026-11-20')).watered).toBe(0);
+    expect(await watered(r, '2026-11-19')).toBe(1);
+    expect(await watered(r, '2026-11-20')).toBe(0);
     clock = '2026-11-20T00:00:00+05:30';
     await r.plants.water(p.id);
-    expect((await r.activity.day('2026-11-20')).watered).toBe(1);
-    expect((await r.activity.day('2026-11-19')).watered).toBe(1);
+    expect(await watered(r, '2026-11-20')).toBe(1);
+    expect(await watered(r, '2026-11-19')).toBe(1);
   });
 
-  it('week counts only in range; month and detail', async () => {
+  it('range counts only in range; detail', async () => {
     const r = await setup();
     const b = await r.beds.create('B');
     const p = await r.plants.create({ text: '1', bedId: b.id, priority: null });
@@ -183,8 +184,10 @@ describe('repos', () => {
     await r.plants.bloom(p.id);
     clock = '2026-11-23T10:00:00+05:30';
     await r.plants.water(p.id);
-    expect(await r.activity.week('2026-11-16', '2026-11-22')).toEqual({ blooms: 1, waters: 2 });
-    const m = await r.activity.month(2026, 10);
+    const week = await r.activity.range('2026-11-16', '2026-11-22');
+    expect(Object.values(week).reduce((n, d) => n + d.bloomed, 0)).toBe(1);
+    expect(Object.values(week).reduce((n, d) => n + d.watered, 0)).toBe(2);
+    const m = await r.activity.range('2026-11-01', '2026-11-30');
     expect(m['2026-11-16']).toEqual({ planted: 0, watered: 2, bloomed: 0 });
     expect(m['2026-11-19']).toEqual({ planted: 1, watered: 0, bloomed: 0 });
     expect(Object.keys(m).sort()).toEqual(['2026-11-15', '2026-11-16', '2026-11-19', '2026-11-22', '2026-11-23']);
@@ -248,6 +251,6 @@ describe('repos', () => {
     expect(await r.beds.list()).toEqual([]);
     expect(await r.plants.listActive()).toEqual([]);
     expect(await r.settings.get('persona')).toBeNull();
-    expect((await r.activity.day('2026-11-19')).watered).toBe(0);
+    expect(await watered(r, '2026-11-19')).toBe(0);
   });
 });

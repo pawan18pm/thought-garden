@@ -1,10 +1,6 @@
-import { dayKey, monthGrid, nowIso, weekRange } from '@/domain/dates';
+import { dayKey, monthGrid, nowIso } from '@/domain/dates';
 
 describe('dates', () => {
-  it('weekRange is Monday to Sunday', () => {
-    expect(weekRange(new Date(2026, 10, 19))).toEqual({ startKey: '2026-11-16', endKey: '2026-11-22' });
-    expect(weekRange(new Date(2026, 10, 22))).toEqual({ startKey: '2026-11-16', endKey: '2026-11-22' });
-  });
   it('monthGrid is 42 cells Monday-first', () => {
     const g = monthGrid(2026, 10);
     expect(g).toHaveLength(42);
