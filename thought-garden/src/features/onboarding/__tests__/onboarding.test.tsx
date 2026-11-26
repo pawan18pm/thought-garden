@@ -69,15 +69,9 @@ describe('onboarding', () => {
   it('welcome shows the approved copy and starts the garden', async () => {
     await render(<Welcome />);
     expect(screen.getByText('Your best ideas deserve to grow.')).toBeTruthy();
-    expect(
-      screen.getByText('Every day you think of things to learn, build or try. Most of them get lost in notes, tabs and chats.'),
-    ).toBeTruthy();
-    expect(
-      screen.getByText(
-        "Thought Garden gives each one a home. Plant it in a bed, water it when you make progress, and watch it bloom when it's done.",
-      ),
-    ).toBeTruthy();
-    expect(screen.getByText('Small steps. Real progress.')).toBeTruthy();
+    expect(screen.getByText('Thought Garden')).toBeTruthy();
+    for (const l of ['Plant', 'Water', 'Grow', 'Bloom']) expect(screen.getByText(l)).toBeTruthy();
+    expect(screen.getByText('Plant a thought. Watch it bloom.')).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Start my garden'));
     expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/persona');
   });
