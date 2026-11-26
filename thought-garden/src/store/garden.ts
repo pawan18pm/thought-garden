@@ -5,7 +5,7 @@ import type { Bed, Plant, Priority } from '@/domain/types';
 import type { BedColorKey } from '@/ui/tokens';
 import { sortPlants } from '@/domain/ordering';
 import { validateThought } from '@/domain/validate';
-import { BLOOM_AT_WATERS } from '@/domain/stages';
+import { BLOOM_AT_WATERS, canBloomNow } from '@/domain/stages';
 import { dayKey } from '@/domain/dates';
 import { setAnalyticsEnabled, track } from '@/analytics/analytics';
 
@@ -102,18 +102,25 @@ export function createGardenStore(repos: Repos) {
       },
 
       async bloom(id) {
+        // Same rule as the UI: only an active plant watered at least once can bloom early.
+        if (watering.has(id)) return;
         const p = get().plants.find((x) => x.id === id);
-        await repos.plants.bloom(id);
-        await refresh();
-        if (p) {
+        if (!p || !canBloomNow(p)) return;
+        watering.add(id);
+        try {
+          await repos.plants.bloom(id);
+          await refresh();
           track('plant_bloomed', {
             water_count: p.waterCount,
             age_days: Math.max(0, differenceInCalendarDays(new Date(), new Date(p.createdAt))),
           });
+        } finally {
+          watering.delete(id);
         }
       },
 
       async unbloom(id) {
+        if (!get().bloomedToday.some((x) => x.id === id)) return;
         await repos.plants.unbloom(id);
         await refresh();
         track('bloom_undone', {});

@@ -36,13 +36,14 @@ jest.mock('@/store/AppProvider', () => ({
 const fns = {
   water: jest.fn(),
   bloom: jest.fn(),
+  unbloom: jest.fn(),
   edit: jest.fn(),
   remove: jest.fn(),
 };
 
 beforeEach(() => {
   Object.values(fns).forEach((f) => f.mockReset().mockResolvedValue(undefined));
-  Object.assign(state, { beds: [bedA, bedB, ideas], plants: [mkPlant({ waterCount: 2 })], ...fns });
+  Object.assign(state, { beds: [bedA, bedB, ideas], plants: [mkPlant({ waterCount: 2 })], bloomedToday: [], ...fns });
 });
 
 const open = (onClose = () => {}) => render(<PlantDetailSheet plantId="p1" onClose={onClose} />);
@@ -183,5 +184,53 @@ describe('PlantDetailSheet bloom', () => {
     await jest.advanceTimersByTimeAsync(400);
     expect(onClose).toHaveBeenCalled();
     jest.useRealTimers();
+  });
+});
+
+describe('PlantDetailSheet bloom rules', () => {
+  it('Bloom is disabled for an unwatered plant', async () => {
+    Object.assign(state, { plants: [mkPlant({ waterCount: 0 })] });
+    await open();
+    expect(screen.getByLabelText('Bloom').props.accessibilityState.disabled).toBe(true);
+    await fireEvent.press(screen.getByLabelText('Bloom'));
+    expect(fns.bloom).not.toHaveBeenCalled();
+  });
+
+  it('Bloom is enabled once watered', async () => {
+    Object.assign(state, { plants: [mkPlant({ waterCount: 1 })] });
+    await open();
+    expect(screen.getByLabelText('Bloom').props.accessibilityState.disabled).toBe(false);
+  });
+
+  it('a bloomed-today plant opens with Undo bloom instead of Water/Bloom', async () => {
+    Object.assign(state, { plants: [], bloomedToday: [mkPlant({ waterCount: 3, bloomedAt: '2026-11-26T10:00:00Z' })] });
+    await open();
+    expect(screen.getByText('Learn SQL')).toBeTruthy();
+    expect(screen.queryByLabelText('Water')).toBeNull();
+    expect(screen.queryByLabelText('Bloom')).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Undo bloom'));
+    expect(fns.unbloom).toHaveBeenCalledWith('p1');
+  });
+
+  it('the watering that auto-blooms closes the sheet like Bloom', async () => {
+    jest.useFakeTimers();
+    try {
+      const onClose = jest.fn();
+      const view = await render(<PlantDetailSheet plantId="p1" onClose={onClose} />);
+      fns.water.mockImplementation(async () => {
+        state.plants = [];
+        state.bloomedToday = [mkPlant({ waterCount: 3, bloomedAt: '2026-11-26T10:00:00Z' })];
+        await view.rerender(<PlantDetailSheet plantId="p1" onClose={onClose} />);
+      });
+      await fireEvent.press(screen.getByLabelText('Water'));
+      expect(fns.water).toHaveBeenCalledWith('p1');
+      // Still showing the pre-bloom plant while the pop plays, not Undo bloom.
+      expect(screen.queryByLabelText('Undo bloom')).toBeNull();
+      expect(onClose).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(400);
+      expect(onClose).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

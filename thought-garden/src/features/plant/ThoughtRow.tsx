@@ -75,7 +75,12 @@ export function ThoughtRow({ plant, bed, onWater, onBloom, onPress, highlight }:
         />
       ) : null}
       <PlantArt stage={stageOf(plant)} size={44} flowerColor={bloomColor} />
-      <Pressable onPress={onPress} style={{ flex: 1, minWidth: 0 }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${title}`}
+        onPress={onPress}
+        style={{ flex: 1, minWidth: 0 }}
+      >
         <Text
           numberOfLines={1}
           ellipsizeMode="tail"

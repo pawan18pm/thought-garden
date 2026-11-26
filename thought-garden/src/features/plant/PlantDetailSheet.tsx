@@ -8,7 +8,7 @@ import { useReducedMotion } from '@/ui/useReducedMotion';
 import { useGarden } from '@/store/AppProvider';
 import { MAX_THOUGHT_LENGTH, validateThought } from '@/domain/validate';
 import { orderBeds } from '@/domain/ordering';
-import { stageOf } from '@/domain/stages';
+import { BLOOM_AT_WATERS, canBloomNow, stageOf } from '@/domain/stages';
 import type { Plant } from '@/domain/types';
 import { bedColors, colors, fonts } from '@/ui/tokens';
 import { Chip } from './Chip';
@@ -27,19 +27,22 @@ export function waterCopy(n: number): string {
 }
 
 export function PlantDetailSheet({ plantId, onClose }: Props) {
-  const live = useGarden((s) => (plantId ? s.plants.find((p) => p.id === plantId) : undefined));
+  // Today's blooms stay listed on the Plant tab, so they open here too (with Undo bloom).
+  const live = useGarden((s) =>
+    plantId ? (s.plants.find((p) => p.id === plantId) ?? s.bloomedToday.find((p) => p.id === plantId)) : undefined,
+  );
   const beds = useGarden((s) => s.beds);
   const water = useGarden((s) => s.water);
   const bloom = useGarden((s) => s.bloom);
+  const unbloom = useGarden((s) => s.unbloom);
   const edit = useGarden((s) => s.edit);
   const remove = useGarden((s) => s.remove);
   const reduced = useReducedMotion();
 
-  // Keep showing the plant while the bloom pop plays, after the store has removed it.
-  const lastRef = useRef<Plant | undefined>(undefined);
-  const [closing, setClosing] = useState(false);
-  if (live) lastRef.current = live;
-  const plant = live ?? (closing ? lastRef.current : undefined);
+  // While the bloom pop plays, keep showing the plant as it was before it bloomed.
+  const frozen = useRef<Plant | undefined>(undefined);
+  const [, setClosing] = useState(false);
+  const plant = frozen.current ?? live;
 
   const [busyUi, setBusyUi] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -53,6 +56,7 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
   useEffect(() => {
     setEditing(false);
     setPanel(null);
+    frozen.current = undefined;
     setClosing(false);
     scale.value = 1;
     opacity.value = 1;
@@ -77,6 +81,11 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
 
   const onWater = async () => {
     if (busy.current) return;
+    // The last watering blooms the plant: play it out like Bloom and close.
+    if (plant.waterCount + 1 >= BLOOM_AT_WATERS) {
+      await bloomOut(() => water(plant.id));
+      return;
+    }
     busy.current = true;
     setBusyUi(true);
     try {
@@ -89,15 +98,17 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
     }
   };
 
-  const onBloom = async () => {
+  const bloomOut = async (action: () => Promise<void>) => {
     if (busy.current) return;
     busy.current = true;
     setBusyUi(true);
-    // Snapshot first: the store update inside bloom() removes the plant before the promise resolves.
+    // Snapshot first: the store update inside the action moves the plant before the promise resolves.
+    frozen.current = plant;
     setClosing(true);
     try {
-      await bloom(plant.id);
+      await action();
     } catch (e) {
+      frozen.current = undefined;
       setClosing(false);
       busy.current = false;
       setBusyUi(false);
@@ -110,6 +121,23 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
     }
     scale.value = withSequence(withTiming(1.4, { duration: 160 }), withTiming(1, { duration: 140 }));
     timer.current = setTimeout(onClose, 320);
+  };
+
+  const onBloom = async () => {
+    if (!canBloomNow(plant)) return;
+    await bloomOut(() => bloom(plant.id));
+  };
+
+  const onUndoBloom = async () => {
+    if (busy.current) return;
+    busy.current = true;
+    setBusyUi(true);
+    try {
+      await unbloom(plant.id);
+    } finally {
+      busy.current = false;
+      setBusyUi(false);
+    }
   };
 
   const saveText = async () => {
@@ -182,8 +210,14 @@ export function PlantDetailSheet({ plantId, onClose }: Props) {
         <Text style={styles.meta}>{waterCopy(plant.waterCount)}</Text>
 
         <View style={[styles.row, styles.actions]}>
-          <ChunkyButton label="Water" onPress={onWater} disabled={busyUi} />
-          <ChunkyButton label="Bloom" tone="primary" onPress={onBloom} disabled={busyUi} />
+          {plant.bloomedAt ? (
+            <ChunkyButton label="Undo bloom" onPress={onUndoBloom} disabled={busyUi} />
+          ) : (
+            <>
+              <ChunkyButton label="Water" onPress={onWater} disabled={busyUi} />
+              <ChunkyButton label="Bloom" tone="primary" onPress={onBloom} disabled={busyUi || !canBloomNow(plant)} />
+            </>
+          )}
         </View>
 
         <Pressable style={styles.link} accessibilityRole="button" onPress={() => setPanel(panel === 'priority' ? null : 'priority')}>

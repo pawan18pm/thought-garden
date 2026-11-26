@@ -49,7 +49,15 @@ describe('ThoughtRow', () => {
     expect(h.onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('long title is one line', async () => {
+  it('title is a labelled button that opens the plant', async () => {
+    const h = await setup();
+    const open = screen.getByLabelText('Open Learn SQL');
+    expect(open.props.accessibilityRole).toBe('button');
+    await fireEvent.press(open);
+    expect(h.onPress).toHaveBeenCalledTimes(1);
+  });
+
+    it('long title is one line', async () => {
     await setup({ text: 'x'.repeat(200) });
     expect(screen.getByText('x'.repeat(200)).props.numberOfLines).toBe(1);
   });

@@ -9,7 +9,13 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
-jest.mock('../PlantDetailSheet', () => ({ PlantDetailSheet: () => null }));
+const mockSheetIds: (string | null)[] = [];
+jest.mock('../PlantDetailSheet', () => ({
+  PlantDetailSheet: ({ plantId }: { plantId: string | null }) => {
+    mockSheetIds.push(plantId);
+    return null;
+  },
+}));
 
 const state: Record<string, unknown> = {};
 jest.mock('@/store/AppProvider', () => ({
@@ -199,6 +205,14 @@ describe('Plant tab', () => {
     await fireEvent.press(screen.getByText('Edit beds'));
     await fireEvent.press(screen.getByText('+ Add a bed'));
     expect(fns.addBed).toHaveBeenCalledWith('New bed', 'purple');
+  });
+
+  it('tapping a bloomed-today row opens its detail sheet', async () => {
+    Object.assign(state, { bloomedToday: [mkPlant({ id: 'b1', text: 'Done thing', waterCount: 3, bloomedAt: '2026-11-26T10:00:00Z' })] });
+    await render(<PlantTab />);
+    mockSheetIds.length = 0;
+    await fireEvent.press(screen.getByLabelText('Open Done thing'));
+    expect(mockSheetIds[mockSheetIds.length - 1]).toBe('b1');
   });
 
   it('watering flashes the row briefly, then the tint clears', async () => {

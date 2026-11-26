@@ -47,12 +47,40 @@ describe('garden store', () => {
   it('bloom and unbloom move plants between lists', async () => {
     const { store } = await setup();
     const p = (await store.getState().plant('t'))!;
+    await store.getState().water(p.id);
     await store.getState().bloom(p.id);
     expect(store.getState().plants).toHaveLength(0);
     expect(store.getState().bloomedToday.map((x) => x.id)).toEqual([p.id]);
     await store.getState().unbloom(p.id);
     expect(store.getState().plants).toHaveLength(1);
     expect(store.getState().bloomedToday).toHaveLength(0);
+  });
+
+  it('bloom refuses an unwatered plant', async () => {
+    const { store } = await setup();
+    const p = (await store.getState().plant('t'))!;
+    await store.getState().bloom(p.id);
+    expect(store.getState().plants.map((x) => x.id)).toEqual([p.id]);
+    expect(store.getState().bloomedToday).toHaveLength(0);
+    expect(captures.filter((c) => c.name === 'plant_bloomed')).toHaveLength(0);
+  });
+
+  it('bloom on an already bloomed plant does nothing', async () => {
+    const { store } = await setup();
+    const p = (await store.getState().plant('t'))!;
+    await store.getState().water(p.id);
+    await store.getState().bloom(p.id);
+    await store.getState().bloom(p.id);
+    expect(captures.filter((c) => c.name === 'plant_bloomed')).toHaveLength(1);
+    expect(store.getState().bloomedToday).toHaveLength(1);
+  });
+
+  it('concurrent bloom blooms once', async () => {
+    const { store } = await setup();
+    const p = (await store.getState().plant('t'))!;
+    await store.getState().water(p.id);
+    await Promise.all([store.getState().bloom(p.id), store.getState().bloom(p.id)]);
+    expect(captures.filter((c) => c.name === 'plant_bloomed')).toHaveLength(1);
   });
 
   it('removeBed re-homes plants into Ideas', async () => {
