@@ -1,41 +1,48 @@
 import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { OnboardingScreen, onboardingStyles } from '@/features/onboarding/OnboardingScreen';
+import { OnboardingScreen, BigButton, onboardingStyles } from '@/features/onboarding/OnboardingScreen';
 import { MAX_BEDS, useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
-import { Chip } from '@/features/plant/Chip';
-import { ChunkyButton } from '@/ui/ChunkyButton';
 import { useGarden, useRepos } from '@/store/AppProvider';
-import { border, colors, fonts } from '@/ui/tokens';
+import { bedColors, border, colors, flowerColors, fonts } from '@/ui/tokens';
+
+const IDEAS = ['Health', 'Reading', 'Work', 'Side project', 'Money', 'Learning', 'Family'];
 
 export default function Beds() {
   const router = useRouter();
   const repos = useRepos();
   const addBed = useGarden((s) => s.addBed);
   const storeBeds = useGarden((s) => s.beds);
-  const { persona, beds, toggle, rename, addCustom, setBedId, setFirstBedId } = useOnboardingDraft();
-  const [editing, setEditing] = useState<string | null>(null);
+  const { persona, beds, rename, recolor, remove, addNamed, clear, setBedId, setFirstBedId } = useOnboardingDraft();
+  const [newBed, setNewBed] = useState('');
   const busy = useRef(false);
 
-  const selected = beds.filter((b) => b.selected);
-  const valid = selected.length >= 1 && selected.length <= MAX_BEDS && selected.every((b) => b.name.trim().length > 0);
+  const hasBeds = beds.length > 0;
+  const valid = hasBeds && beds.length <= MAX_BEDS && beds.every((b) => b.name.trim().length > 0);
+  const names = beds.map((b) => b.name.trim().toLowerCase());
+  const ideas = IDEAS.filter((n) => !names.includes(n.toLowerCase())).slice(0, 5);
 
-  const onContinue = async () => {
-    if (busy.current || !valid) return;
+  const add = (name: string) => {
+    if (addNamed(name)) setNewBed('');
+  };
+
+  const create = async () => {
+    if (busy.current) return;
     busy.current = true;
     try {
       if (persona) await repos.settings.set('persona', persona);
+      const draft = useOnboardingDraft.getState().beds;
       const existingUser = storeBeds.filter((b) => !b.isIdeas);
-      const draftHasCreated = beds.some((b) => b.bedId);
+      const draftHasCreated = draft.some((b) => b.bedId);
       if (existingUser.length > 0 && !draftHasCreated) {
         // Onboarding was interrupted earlier: beds already exist, do not recreate them.
         if (!useOnboardingDraft.getState().firstBedId) setFirstBedId(existingUser[0].id);
         router.push('/onboarding/first-plant');
         return;
       }
-      for (const b of selected) {
+      for (const b of draft) {
         if (b.bedId) continue;
-        const bed = await addBed(b.name.trim());
+        const bed = await addBed(b.name.trim(), b.color);
         setBedId(b.key, bed.id);
         if (!useOnboardingDraft.getState().firstBedId) setFirstBedId(bed.id);
       }
@@ -46,64 +53,186 @@ export default function Beds() {
     }
   };
 
+  const onContinue = () => {
+    if (!valid) return;
+    void create();
+  };
+
+  const onSkip = () => {
+    if (busy.current) return;
+    if (!hasBeds) useOnboardingDraft.setState({ beds: [{ key: 'mine', name: 'My thoughts', color: 'green' }] });
+    void create();
+  };
+
+  const label = !hasBeds
+    ? 'Add at least one bed'
+    : `Continue with ${beds.length} ${beds.length === 1 ? 'bed' : 'beds'}`;
+
   return (
     <OnboardingScreen
       step="beds"
-      title="What are you growing right now?"
-      footer={<ChunkyButton tone="primary" label="Continue" disabled={!valid} onPress={onContinue} />}
+      title="Make your beds"
+      progress={2}
+      back
+      headerRight={
+        <Pressable accessibilityRole="button" accessibilityLabel="Skip" onPress={onSkip} style={styles.skip}>
+          <Text style={styles.skipText}>Skip</Text>
+        </Pressable>
+      }
+      footer={<BigButton label={label} disabled={!valid} onPress={onContinue} />}
     >
-      <Text style={onboardingStyles.sub}>Keep between 1 and {MAX_BEDS}. Tap the pencil to rename.</Text>
-      <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
-        {beds.map((b) =>
-          editing === b.key ? (
+      <Text style={onboardingStyles.sub}>
+        {persona === 'other'
+          ? 'Start with one bed for each kind of thought. Name them your way.'
+          : 'We suggested these for you. Rename, recolor, remove or add your own.'}
+      </Text>
+      <ScrollView contentContainerStyle={styles.list} keyboardShouldPersistTaps="handled">
+        {beds.map((b) => (
+          <View key={b.key} style={[styles.row, { borderBottomColor: flowerColors[b.color] }]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Change color of ${b.name}`}
+              onPress={() => recolor(b.key)}
+              style={[styles.swatch, { backgroundColor: bedColors[b.color] }]}
+            />
             <TextInput
-              key={b.key}
               accessibilityLabel="Bed name"
-              autoFocus
               value={b.name}
               maxLength={30}
               onChangeText={(t) => rename(b.key, t)}
-              onSubmitEditing={() => setEditing(null)}
-              onBlur={() => setEditing(null)}
-              returnKeyType="done"
-              style={styles.input}
+              style={styles.name}
             />
-          ) : (
-            <View key={b.key} style={styles.row}>
-              <Chip label={b.name} accessibilityLabel={b.name} selected={b.selected} onPress={() => toggle(b.key)} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${b.name}`}
+              onPress={() => remove(b.key)}
+              style={styles.remove}
+            >
+              <Text style={styles.removeText}>✕</Text>
+            </Pressable>
+          </View>
+        ))}
+        {beds.length < MAX_BEDS ? (
+          <>
+            <View style={styles.addRow}>
+              <TextInput
+                accessibilityLabel="New bed name"
+                placeholder={hasBeds ? 'Name another bed…' : 'Name your first bed…'}
+                placeholderTextColor="#6F685C"
+                value={newBed}
+                maxLength={30}
+                onChangeText={setNewBed}
+                onSubmitEditing={() => add(newBed)}
+                returnKeyType="done"
+                style={styles.addInput}
+              />
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Rename ${b.name}`}
-                hitSlop={8}
-                onPress={() => setEditing(b.key)}
-                style={styles.pencil}
+                accessibilityLabel="Add"
+                onPress={() => add(newBed)}
+                style={[styles.addBtn, newBed.trim() ? { backgroundColor: colors.ink } : null]}
               >
-                <Text style={styles.pencilText}>✎</Text>
+                <Text style={[styles.addText, newBed.trim() ? { color: '#FFFFFF' } : null]}>Add</Text>
               </Pressable>
             </View>
-          ),
-        )}
-        <Chip label="+ Add bed" accessibilityLabel="Add bed" onPress={() => setEditing(addCustom())} />
+            <View style={styles.ideas}>
+              {ideas.map((n) => (
+                <Pressable
+                  key={n}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Add ${n}`}
+                  onPress={() => add(n)}
+                  style={styles.idea}
+                >
+                  <Text style={styles.ideaText}>+ {n}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        ) : null}
+        {hasBeds ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="Clear all and start blank" onPress={clear} style={styles.clear}>
+            <Text style={styles.clearText}>Clear all and start blank</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </OnboardingScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  pencil: { minWidth: 32, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  pencilText: { fontSize: 16, color: colors.muted },
-  input: {
-    minHeight: 44,
-    minWidth: 140,
-    paddingHorizontal: 16,
-    borderWidth: border,
-    borderColor: colors.ink,
-    borderRadius: 999,
+  skip: { height: 44, paddingHorizontal: 4, justifyContent: 'center' },
+  skipText: { fontFamily: fonts.bodySemi, fontSize: 15, color: colors.muted },
+  list: { gap: 12, paddingBottom: 24 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: 64,
+    paddingHorizontal: 12,
     backgroundColor: '#FFFFFF',
-    fontFamily: fonts.bodySemi,
-    fontSize: 15,
+    borderWidth: border,
+    borderBottomWidth: border + 5,
+    borderColor: colors.ink,
+    borderRadius: 22,
+  },
+  swatch: { width: 44, height: 44, borderRadius: 999, borderWidth: border, borderColor: colors.ink },
+  name: {
+    flex: 1,
+    minWidth: 0,
+    height: 44,
+    paddingHorizontal: 8,
+    borderBottomWidth: 2,
+    borderStyle: 'dashed',
+    borderBottomColor: '#D8D3CA',
+    fontFamily: fonts.titleBold,
+    fontSize: 19,
     color: colors.ink,
   },
+  remove: {
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    borderWidth: border,
+    borderColor: '#D8D3CA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeText: { fontSize: 14, fontWeight: '700', color: colors.muted },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 64,
+    paddingLeft: 12,
+    paddingRight: 8,
+    borderWidth: border,
+    borderStyle: 'dashed',
+    borderColor: colors.ink,
+    borderRadius: 22,
+  },
+  addInput: { flex: 1, minWidth: 0, height: 44, fontFamily: fonts.titleBold, fontSize: 18, color: colors.ink },
+  addBtn: {
+    height: 44,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: border,
+    borderColor: colors.ink,
+    borderRadius: 14,
+  },
+  addText: { fontFamily: fonts.bodySemi, fontSize: 15, color: '#6F685C' },
+  ideas: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  idea: {
+    height: 40,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: border,
+    borderColor: '#D8D3CA',
+    borderRadius: 999,
+  },
+  ideaText: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.ink },
+  clear: { alignSelf: 'center', height: 44, justifyContent: 'center' },
+  clearText: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.muted, textDecorationLine: 'underline' },
 });

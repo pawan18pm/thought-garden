@@ -1,34 +1,88 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { OnboardingScreen } from '@/features/onboarding/OnboardingScreen';
 import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
-import { Chip } from '@/features/plant/Chip';
 import { PERSONA_LABELS } from '@/domain/personas';
 import type { Persona } from '@/domain/types';
+import { BED_COLOR_ORDER, bedColors, border, colors, flowerColors, fonts } from '@/ui/tokens';
 
-const ORDER: Persona[] = ['student', 'jobPrep', 'professional', 'builder'];
+const CARDS: { id: Persona; sub: string }[] = [
+  { id: 'student', sub: 'Subjects · Exams · Assignments' },
+  { id: 'jobPrep', sub: 'Interview · DSA · Resume' },
+  { id: 'professional', sub: 'Work · Upskilling · Side project' },
+  { id: 'builder', sub: 'Ideas · Build · Learn · Launch' },
+  { id: 'other', sub: "I'll make my own beds" },
+];
 
 export default function PersonaScreen() {
   const router = useRouter();
-  const current = useOnboardingDraft((s) => s.persona);
   const setPersona = useOnboardingDraft((s) => s.setPersona);
   return (
-    <OnboardingScreen step="persona" title="What describes you best?">
-      <View style={{ gap: 12, alignItems: 'flex-start' }}>
-        {ORDER.map((p) => (
-          <Chip
-            key={p}
-            label={PERSONA_LABELS[p]}
-            accessibilityLabel={PERSONA_LABELS[p]}
-            selected={current === p}
-            onPress={() => {
-              setPersona(p);
-              router.push('/onboarding/beds');
-            }}
-          />
-        ))}
+    <OnboardingScreen step="persona" title="What are you growing right now?" progress={1} back>
+      <View style={styles.list}>
+        {CARDS.map((c, i) => {
+          const own = c.id === 'other';
+          const key = BED_COLOR_ORDER[i];
+          return (
+            <Pressable
+              key={c.id}
+              accessibilityRole="button"
+              accessibilityLabel={PERSONA_LABELS[c.id]}
+              onPress={() => {
+                setPersona(c.id);
+                router.push('/onboarding/beds');
+              }}
+              style={[
+                styles.card,
+                { borderStyle: own ? 'dashed' : 'solid', borderBottomColor: own ? colors.ink : flowerColors[key] },
+                !own && styles.cardShadow,
+              ]}
+            >
+              <View
+                style={[
+                  styles.dot,
+                  { backgroundColor: own ? '#FFFFFF' : bedColors[key], borderStyle: own ? 'dashed' : 'solid' },
+                ]}
+              >
+                {own ? <Text style={styles.plus}>+</Text> : null}
+              </View>
+              <View>
+                <Text style={styles.label}>{PERSONA_LABELS[c.id]}</Text>
+                <Text style={styles.sub}>{c.sub}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
     </OnboardingScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  list: { gap: 14 },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    height: 76,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: border,
+    borderColor: colors.ink,
+    borderRadius: 22,
+  },
+  cardShadow: { borderBottomWidth: border + 5 },
+  dot: {
+    width: 46,
+    height: 46,
+    borderRadius: 999,
+    borderWidth: border,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plus: { fontSize: 22, fontWeight: '700', color: colors.ink },
+  label: { fontFamily: fonts.titleBold, fontSize: 20, color: colors.ink },
+  sub: { fontFamily: fonts.body, fontSize: 13, color: colors.muted },
+});

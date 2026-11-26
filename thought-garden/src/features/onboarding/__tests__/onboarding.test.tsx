@@ -43,35 +43,77 @@ beforeEach(() => {
   Object.assign(mockState, { addBed, plant, water, beds: [{ id: 'ideas', name: 'Ideas', isIdeas: true }] });
 });
 
-const continueBtn = () => screen.getByLabelText('Continue');
+const continueBtn = () => screen.getByLabelText(/^Continue with/);
 
 describe('onboarding', () => {
   it('persona jobPrep shows its suggested chips', async () => {
     await render(<Persona />);
     await fireEvent.press(screen.getByLabelText('A new job'));
     await render(<Beds />);
-    for (const n of ['Interview', 'DSA', 'Resume', 'Portfolio']) expect(screen.getByLabelText(n)).toBeTruthy();
+    expect(screen.getAllByLabelText('Bed name').map((i) => i.props.value)).toEqual(['Interview', 'DSA', 'Resume', 'Portfolio']);
   });
 
-  it('Continue disabled with 0 selected and with 7', async () => {
-    useOnboardingDraft.getState().setPersona('builder');
+  it('other persona starts with no beds and Continue is disabled', async () => {
+    useOnboardingDraft.getState().setPersona('other');
+    expect(useOnboardingDraft.getState().beds).toEqual([]);
     await render(<Beds />);
-    expect(continueBtn().props.accessibilityState.disabled).toBe(false);
-    for (const n of ['Ideas to explore', 'Build', 'Learn', 'Launch']) await fireEvent.press(screen.getByLabelText(n));
-    expect(continueBtn().props.accessibilityState.disabled).toBe(true);
-    for (const n of ['Ideas to explore', 'Build', 'Learn', 'Launch']) await fireEvent.press(screen.getByLabelText(n));
-    for (let i = 0; i < 3; i++) await fireEvent.press(screen.getByLabelText('Add bed'));
-    expect(useOnboardingDraft.getState().beds.filter((b) => b.selected)).toHaveLength(7);
-    expect(continueBtn().props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByText('Start with one bed for each kind of thought. Name them your way.')).toBeTruthy();
+    const btn = screen.getByLabelText('Add at least one bed');
+    expect(btn.props.accessibilityState.disabled).toBe(true);
+  });
+
+  it('adds beds via the field and via an idea chip, capped at 6', async () => {
+    useOnboardingDraft.getState().setPersona('other');
+    await render(<Beds />);
+    await fireEvent.changeText(screen.getByLabelText('New bed name'), 'Garage');
+    await fireEvent.press(screen.getByLabelText('Add'));
+    await fireEvent.press(screen.getByLabelText('Add Health'));
+    expect(useOnboardingDraft.getState().beds.map((b) => b.name)).toEqual(['Garage', 'Health']);
+    expect(screen.getByLabelText('Continue with 2 beds').props.accessibilityState.disabled).toBe(false);
+    expect(screen.queryByLabelText('Add Health')).toBeNull();
+    const d = useOnboardingDraft.getState();
+    expect(d.addNamed('   ')).toBe(false);
+    for (const n of ['a', 'b', 'c', 'd']) expect(d.addNamed(n)).toBe(true);
+    expect(d.addNamed('g')).toBe(false);
+  });
+
+  it('Clear all empties the draft; Skip with no beds creates My thoughts', async () => {
+    useOnboardingDraft.getState().setPersona('jobPrep');
+    await render(<Beds />);
+    await fireEvent.press(screen.getByLabelText('Clear all and start blank'));
+    expect(useOnboardingDraft.getState().beds).toEqual([]);
+    await fireEvent.press(screen.getByLabelText('Skip'));
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/first-plant'));
+    expect(addBed).toHaveBeenCalledTimes(1);
+    expect(addBed.mock.calls[0][0]).toBe('My thoughts');
+  });
+
+  it('Skip keeps the current draft', async () => {
+    useOnboardingDraft.getState().setPersona('jobPrep');
+    await render(<Beds />);
+    await fireEvent.press(screen.getByLabelText('Skip'));
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/first-plant'));
+    expect(addBed.mock.calls.map((c) => c[0])).toEqual(['Interview', 'DSA', 'Resume', 'Portfolio']);
+  });
+
+  it('created beds pass their colour; recolor and remove work', async () => {
+    useOnboardingDraft.getState().setPersona('jobPrep');
+    await render(<Beds />);
+    await fireEvent.press(screen.getByLabelText('Remove DSA'));
+    await fireEvent.press(screen.getByLabelText('Change color of Interview'));
+    await fireEvent.press(screen.getByLabelText('Continue with 3 beds'));
+    await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/first-plant'));
+    expect(addBed.mock.calls).toEqual([
+      ['Interview', 'orange'],
+      ['Resume', 'purple'],
+      ['Portfolio', 'yellow'],
+    ]);
   });
 
   it('renamed bed is created with the new name, then goes to first plant', async () => {
     useOnboardingDraft.getState().setPersona('jobPrep');
     await render(<Beds />);
-    await fireEvent.press(screen.getByLabelText('Rename Interview'));
-    await fireEvent.changeText(screen.getByLabelText('Bed name'), 'Interviews');
-    await fireEvent(screen.getByLabelText('Bed name'), 'submitEditing');
-    await fireEvent.press(continueBtn());
+    await fireEvent.changeText(screen.getAllByLabelText('Bed name')[0], 'Interviews');
     await fireEvent.press(continueBtn());
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/first-plant'));
     expect(addBed.mock.calls.map((c) => c[0])).toEqual(['Interviews', 'DSA', 'Resume', 'Portfolio']);
@@ -112,32 +154,49 @@ describe('onboarding', () => {
     expect(useOnboardingDraft.getState().firstBedId).toBe('u1');
   });
 
+  const twoBeds = () => {
+    useOnboardingDraft.setState({
+      persona: 'jobPrep',
+      firstBedId: 'b1',
+      beds: [
+        { key: 'a', name: 'Interview', color: 'blue', bedId: 'b1' },
+        { key: 'c', name: 'DSA', color: 'orange', bedId: 'b2' },
+      ],
+    });
+    mockState.beds = [
+      { id: 'ideas', name: 'Ideas', isIdeas: true, color: 'ideas' },
+      { id: 'b1', name: 'Interview', isIdeas: false, color: 'blue' },
+      { id: 'b2', name: 'DSA', isIdeas: false, color: 'orange' },
+    ];
+  };
+
   it('first plant marks onboarding done right after planting', async () => {
-    useOnboardingDraft.setState({ persona: 'jobPrep', firstBedId: 'b1' });
-    mockState.beds = [{ id: 'b1', name: 'Interview', isIdeas: false }];
+    twoBeds();
     await render(<FirstPlant />);
     await fireEvent.changeText(screen.getByLabelText('Your first thought'), 'Something');
-    await fireEvent.press(screen.getByLabelText('Plant it'));
+    await fireEvent.press(screen.getByLabelText('Plant it in Interview'));
     await waitFor(() => expect(mockSettingsSet).toHaveBeenCalledWith('onboarding_done', '1'));
     expect(useOnboardingState.getState().done).toBe(true);
   });
 
-  it('first plant preselects first kept bed and auto-waters', async () => {
-    useOnboardingDraft.setState({ persona: 'jobPrep', firstBedId: 'b1' });
-    mockState.beds = [{ id: 'b1', name: 'Interview', isIdeas: false }];
+  it('first plant lists only created beds, disabled until typed, plants in chosen bed', async () => {
+    twoBeds();
     await render(<FirstPlant />);
-    expect(screen.getByText('Interview')).toBeTruthy();
-    expect(screen.queryByText('Ideas')).toBeNull();
-    expect(screen.getByLabelText('Plant it').props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByLabelText('Interview')).toBeTruthy();
+    expect(screen.getByLabelText('DSA')).toBeTruthy();
+    expect(screen.queryByLabelText('Ideas')).toBeNull();
+    expect(screen.getByLabelText('Plant it in Interview').props.accessibilityState.disabled).toBe(true);
+    await fireEvent.press(screen.getByLabelText('DSA'));
     await fireEvent.changeText(screen.getByLabelText('Your first thought'), 'Practice two-pointer problems');
-    await fireEvent.press(screen.getByLabelText('Plant it'));
+    await fireEvent.press(screen.getByLabelText('Plant it in DSA'));
     await waitFor(() => expect(water).toHaveBeenCalledWith('p1'));
-    expect(plant).toHaveBeenCalledWith('Practice two-pointer problems', 'b1', null, 'onboarding');
+    expect(plant).toHaveBeenCalledWith('Practice two-pointer problems', 'b2', null, 'onboarding');
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/reminder'));
+    expect(useOnboardingDraft.getState().planted).toEqual({ bedName: 'DSA', text: 'Practice two-pointer problems' });
   });
 
   it('Not now finishes onboarding', async () => {
-    useOnboardingDraft.setState({ persona: 'jobPrep', beds: [{ key: 'a', name: 'A', selected: true }] });
+    useOnboardingDraft.setState({ persona: 'jobPrep', beds: [{ key: 'a', name: 'A', color: 'blue' }] });
     await render(<Reminder />);
     await fireEvent.press(screen.getByLabelText('Not now'));
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/plant'));
@@ -151,9 +210,9 @@ describe('onboarding', () => {
     mockEnable.mockResolvedValue(true);
     useOnboardingDraft.setState({ persona: 'student' });
     await render(<Reminder />);
-    expect(screen.getByLabelText('Yes, remind me').props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByLabelText('Yes, nudge me').props.accessibilityState.disabled).toBe(true);
     await fireEvent.press(screen.getByLabelText('Evening 9:00'));
-    await fireEvent.press(screen.getByLabelText('Yes, remind me'));
+    await fireEvent.press(screen.getByLabelText('Yes, nudge me'));
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/plant'));
     expect(mockEnable).toHaveBeenCalledWith('21:00');
     expect(mockSettingsSet).toHaveBeenCalledWith('onboarding_done', '1');
@@ -164,7 +223,7 @@ describe('onboarding', () => {
     useOnboardingDraft.setState({ persona: 'student' });
     await render(<Reminder />);
     await fireEvent.press(screen.getByLabelText('Morning 8:00'));
-    await fireEvent.press(screen.getByLabelText('Yes, remind me'));
+    await fireEvent.press(screen.getByLabelText('Yes, nudge me'));
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/(tabs)/plant'));
     expect(mockSettingsSet).toHaveBeenCalledWith('onboarding_done', '1');
   });

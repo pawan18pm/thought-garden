@@ -1,39 +1,33 @@
 import React, { useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { OnboardingScreen, onboardingStyles } from '@/features/onboarding/OnboardingScreen';
+import { OnboardingScreen, BigButton } from '@/features/onboarding/OnboardingScreen';
 import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
-import { Chip } from '@/features/plant/Chip';
-import { ChunkyButton } from '@/ui/ChunkyButton';
+import { PlantArt } from '@/ui/PlantArt';
 import { useRepos } from '@/store/AppProvider';
 import { useOnboardingState } from '@/store/onboardingState';
 import { track } from '@/analytics/analytics';
 import { enableReminder } from '@/notifications/reminders';
+import { bedColors, border, colors, flowerColors, fonts } from '@/ui/tokens';
 
-type Choice = 'morning' | 'evening' | 'custom';
+type Choice = 'morning' | 'evening';
 type HHmm = `${number}:${number}`;
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const fmt = (d: Date): HHmm => `${pad(d.getHours())}:${pad(d.getMinutes())}` as HHmm;
-
-function defaultCustom(): Date {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  return d;
-}
+const TIMES: { id: Choice; label: string; time: string; hhmm: HHmm }[] = [
+  { id: 'morning', label: 'Morning', time: '8:00', hhmm: '08:00' },
+  { id: 'evening', label: 'Evening', time: '9:00', hhmm: '21:00' },
+];
 
 export default function Reminder() {
   const router = useRouter();
   const repos = useRepos();
   const persona = useOnboardingDraft((s) => s.persona);
-  const bedsCount = useOnboardingDraft((s) => s.beds.filter((b) => b.selected).length);
+  const bedsCount = useOnboardingDraft((s) => s.beds.length);
+  const planted = useOnboardingDraft((s) => s.planted);
   const [choice, setChoice] = useState<Choice | null>(null);
-  const [custom, setCustom] = useState<Date>(defaultCustom);
   const busy = useRef(false);
 
-  const time: HHmm | null =
-    choice === 'morning' ? '08:00' : choice === 'evening' ? '21:00' : choice === 'custom' ? fmt(custom) : null;
+  const time = TIMES.find((t) => t.id === choice)?.hhmm ?? null;
 
   const finish = async (enable: boolean) => {
     if (busy.current) return;
@@ -58,32 +52,67 @@ export default function Reminder() {
   return (
     <OnboardingScreen
       step="reminder"
-      title="Want a gentle nudge?"
+      title="Want a daily nudge to water it?"
+      progress={4}
       footer={
-        <>
-          <ChunkyButton tone="primary" label="Yes, remind me" disabled={!time} onPress={() => finish(true)} />
-          <ChunkyButton label="Not now" onPress={() => finish(false)} />
-        </>
+        <View style={styles.footer}>
+          <BigButton label="Yes, nudge me" disabled={!time} onPress={() => finish(true)} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Not now" onPress={() => finish(false)} style={styles.notNow}>
+            <Text style={styles.notNowText}>Not now</Text>
+          </Pressable>
+        </View>
       }
     >
-      <Text style={onboardingStyles.sub}>One quiet reminder a day, at a time you pick.</Text>
-      <View style={styles.options}>
-        <Chip label="Morning 8:00" accessibilityLabel="Morning 8:00" selected={choice === 'morning'} onPress={() => setChoice('morning')} />
-        <Chip label="Evening 9:00" accessibilityLabel="Evening 9:00" selected={choice === 'evening'} onPress={() => setChoice('evening')} />
-        <Chip label="Pick a time" accessibilityLabel="Pick a time" selected={choice === 'custom'} onPress={() => setChoice('custom')} />
+      {planted ? (
+        <View style={styles.planted}>
+          <PlantArt stage="seed" size={72} />
+          <Text style={styles.plantedIn}>Planted in {planted.bedName}</Text>
+          <Text style={styles.quote}>"{planted.text}"</Text>
+        </View>
+      ) : null}
+      <View style={styles.times}>
+        {TIMES.map((t) => {
+          const on = t.id === choice;
+          return (
+            <Pressable
+              key={t.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${t.label} ${t.time}`}
+              accessibilityState={{ selected: on }}
+              onPress={() => setChoice(t.id)}
+              style={[
+                styles.time,
+                { backgroundColor: on ? bedColors.green : '#FFFFFF', borderBottomColor: on ? flowerColors.green : colors.line },
+              ]}
+            >
+              <Text style={styles.timeLabel}>{t.label}</Text>
+              <Text style={styles.timeValue}>{t.time}</Text>
+            </Pressable>
+          );
+        })}
       </View>
-      {choice === 'custom' && (
-        <DateTimePicker
-          value={custom}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(_e, d) => d && setCustom(d)}
-        />
-      )}
     </OnboardingScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  options: { gap: 12, alignItems: 'flex-start' },
+  planted: { alignItems: 'center', marginTop: -8, marginBottom: 8 },
+  plantedIn: { marginTop: 8, fontFamily: fonts.bodySemi, fontSize: 15, color: '#2E6B30' },
+  quote: { marginTop: 4, fontFamily: fonts.body, fontSize: 15, color: colors.muted, textAlign: 'center' },
+  times: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  time: {
+    flex: 1,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: border,
+    borderBottomWidth: border + 5,
+    borderColor: colors.ink,
+    borderRadius: 22,
+  },
+  timeLabel: { fontFamily: fonts.bodySemi, fontSize: 14, color: colors.muted },
+  timeValue: { fontFamily: fonts.titleXBold, fontSize: 22, color: colors.ink },
+  footer: { alignItems: 'center', gap: 10 },
+  notNow: { height: 44, paddingHorizontal: 16, justifyContent: 'center' },
+  notNowText: { fontFamily: fonts.bodySemi, fontSize: 16, color: colors.muted },
 });
