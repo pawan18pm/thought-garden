@@ -3,10 +3,25 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import Settings from '@/app/settings';
 import { useOnboardingState } from '@/store/onboardingState';
 import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
+import { __setClientForTests } from '@/analytics/analytics';
 
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
-jest.mock('expo-router', () => ({ Stack: { Screen: () => null }, useRouter: () => ({ back: mockBack, replace: mockReplace }) }));
+const mockNav: string[] = [];
+const mockDismissAll = jest.fn(() => mockNav.push('dismissAll'));
+jest.mock('expo-router', () => ({
+  Stack: { Screen: () => null },
+  useRouter: () => ({
+    back: mockBack,
+    replace: (...a: unknown[]) => {
+      mockNav.push('replace');
+      mockReplace(...a);
+    },
+    canDismiss: () => true,
+    dismissAll: mockDismissAll,
+  }),
+}));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 47, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { version: '1.0.0' } } }));
 jest.mock('@/features/settings/ManageBeds', () => ({ ManageBeds: () => null }));
 jest.mock('@/ui/tokens', () => jest.requireActual('@/ui/tokens'));
@@ -74,8 +89,16 @@ it('Reset asks to confirm before wiping', async () => {
   await fireEvent.press(screen.getByLabelText('Reset all data'));
   useOnboardingState.getState().setDone(true);
   useOnboardingDraft.getState().setPersona('professional');
+  const optIn = jest.fn();
+  __setClientForTests({ capture: jest.fn(), optIn, optOut: jest.fn() });
+  mockNav.length = 0;
   await fireEvent.press(screen.getByLabelText('Reset all data and delete everything'));
   await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/onboarding/welcome'));
+  // Tabs are dismissed before Welcome replaces them, so back can't reach an empty garden.
+  expect(mockNav).toEqual(['dismissAll', 'replace']);
+  // The analytics client is re-synced to the default (on), matching the toggle after the wipe.
+  expect(optIn).toHaveBeenCalled();
+  __setClientForTests(null);
   expect(mockResetAll).toHaveBeenCalledTimes(1);
   expect(mockEnsureIdeas).toHaveBeenCalled();
   expect(mockLoad).toHaveBeenCalled();
@@ -104,4 +127,20 @@ it('Reset still goes to onboarding if the store reload throws after the wipe', a
   await fireEvent.press(screen.getByLabelText('Reset all data and delete everything'));
   await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/onboarding/welcome'));
   expect(useOnboardingState.getState().done).toBe(false);
+});
+
+it('About & feedback is info only: version, no chevron, not a button', async () => {
+  mockGetPerm.mockResolvedValue({ status: 'granted' });
+  await render(<Settings />);
+  expect(screen.getByText('v1.0.0')).toBeTruthy();
+  expect(screen.queryByText('v1.0.0 ›')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'About & feedback' })).toBeNull();
+});
+
+it('top padding follows the safe area', async () => {
+  mockGetPerm.mockResolvedValue({ status: 'granted' });
+  await render(<Settings />);
+  const scroll = screen.getByTestId('settings-scroll');
+  const style = require('react-native').StyleSheet.flatten(scroll.props.contentContainerStyle);
+  expect(style.paddingTop).toBe(55);
 });

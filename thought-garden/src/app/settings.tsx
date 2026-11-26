@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { AppState, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -14,6 +15,7 @@ import type { Persona } from '@/domain/types';
 import { disableReminder, enableReminder } from '@/notifications/reminders';
 import { useOnboardingState } from '@/store/onboardingState';
 import { useOnboardingDraft } from '@/features/onboarding/useOnboardingDraft';
+import { setAnalyticsEnabled } from '@/analytics/analytics';
 
 const DEFAULT_TIME = '21:00';
 const PRESETS = [
@@ -130,10 +132,18 @@ function ReminderSection() {
 function ListRow({ title, value, onPress, last, children }: { title: string; value: string; onPress?: () => void; last?: boolean; children?: ReactNode }) {
   return (
     <View style={last ? undefined : styles.rowLine}>
-      <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={styles.listRow}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        <Text style={styles.rowValue}>{value} ›</Text>
-      </Pressable>
+      {onPress ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={styles.listRow}>
+          <Text style={styles.rowTitle}>{title}</Text>
+          <Text style={styles.rowValue}>{value} ›</Text>
+        </Pressable>
+      ) : (
+        // Info only: no press target, no chevron.
+        <View accessible accessibilityLabel={`${title}, ${value}`} style={styles.listRow}>
+          <Text style={styles.rowTitle}>{title}</Text>
+          <Text style={styles.rowValue}>{value}</Text>
+        </View>
+      )}
       {children}
     </View>
   );
@@ -214,9 +224,13 @@ function ResetBlock() {
     } catch {
       /* data is wiped; onboarding will reload the store */
     }
+    // Settings no longer exist, so the client goes back to the default (sharing on), matching the toggle.
+    setAnalyticsEnabled(true);
     useOnboardingDraft.getState().reset();
-    useOnboardingState.getState().setDone(false);
+    // Drop the tabs underneath first so back / swipe from Welcome can't return to an empty garden.
+    if (router.canDismiss()) router.dismissAll();
     router.replace('/onboarding/welcome');
+    useOnboardingState.getState().setDone(false);
   };
   if (!ask) {
     return (
@@ -243,10 +257,12 @@ function ResetBlock() {
 
 export default function Settings() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   return (
     <ScrollView
+      testID="settings-scroll"
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 8 }]}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       automaticallyAdjustKeyboardInsets
@@ -277,7 +293,7 @@ export default function Settings() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingTop: 56, paddingBottom: 60 },
+  content: { paddingBottom: 60 },
   backWrap: { paddingHorizontal: 20 },
   back: {
     alignSelf: 'flex-start',
