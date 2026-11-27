@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
+import { Animated, Easing, Platform, StyleSheet, Text, TextInput, View, type TextInputInstance } from 'react-native';
 import { useRouter } from 'expo-router';
 import { OnboardingScreen, BigButton, useRevealOnFocus } from '@/features/onboarding/OnboardingScreen';
 import { PressableScale } from '@/ui/PressableScale';
@@ -14,6 +14,8 @@ import { bedColors, border, colors, flowerColors, fonts } from '@/ui/tokens';
 const GROW_MS = 900;
 /** Focus once the push transition has settled, so the keyboard doesn't slide up mid-animation. */
 const FOCUS_DELAY_MS = 450;
+/** react-native-web ignores submitBehavior; it only submits a multiline field on Enter with blurOnSubmit. */
+const WEB_SUBMIT_ON_ENTER = Platform.OS === 'web' ? ({ blurOnSubmit: true } as object) : null;
 
 export default function FirstPlant() {
   const router = useRouter();
@@ -106,6 +108,7 @@ export default function FirstPlant() {
           onFocus={() => reveal(inputRef)}
           multiline
           submitBehavior="submit"
+          {...WEB_SUBMIT_ON_ENTER}
           returnKeyType="done"
           onSubmitEditing={() => void submit()}
           value={text}

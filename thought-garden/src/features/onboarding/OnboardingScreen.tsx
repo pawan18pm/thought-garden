@@ -210,7 +210,10 @@ export function OnboardingScreen({
             <Pressable
               ref={contentRef}
               accessible={false}
-              onPress={Keyboard.dismiss}
+              // Native: tap outside a field to dismiss the keyboard. Web: a click inside a
+              // field bubbles up to this Pressable, and Keyboard.dismiss would blur the field
+              // it just focused, so nothing could be typed. Browsers blur on outside clicks anyway.
+              onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}
               style={[styles.body, { paddingTop: topPadding }]}
             >
               <Animated.View style={{ opacity: enter, transform: [{ translateY: rise }] }}>
