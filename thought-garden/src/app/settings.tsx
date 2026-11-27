@@ -76,8 +76,13 @@ function ReminderSection() {
     } else await repos.settings.set('reminder_time', t);
   };
 
-  const changeTime = async (d?: Date) => {
-    if (d) await applyTime(toHHmm(d));
+  // Android shows the picker as a dialog the moment it mounts, so only mount it on demand.
+  const [picking, setPicking] = useState(false);
+  const android = Platform.OS === 'android';
+
+  const changeTime = async (type: string | undefined, d?: Date) => {
+    setPicking(false);
+    if (d && type !== 'dismissed') await applyTime(toHHmm(d));
   };
 
   return (
@@ -112,12 +117,24 @@ function ReminderSection() {
       {enabled && (
         <View style={styles.customRow}>
           <Text style={styles.label}>Custom time</Text>
-          <DateTimePicker
-            value={toDate(time)}
-            mode="time"
-            display={Platform.OS === 'ios' ? 'compact' : 'default'}
-            onChange={(_e, d) => void changeTime(d)}
-          />
+          {android && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Pick a custom time"
+              onPress={() => setPicking(true)}
+              style={styles.timeBtn}
+            >
+              <Text style={styles.timeText}>{time}</Text>
+            </Pressable>
+          )}
+          {(!android || picking) && (
+            <DateTimePicker
+              value={toDate(time)}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'compact' : 'default'}
+              onChange={(e, d) => void changeTime(e?.type, d)}
+            />
+          )}
         </View>
       )}
       {denied && (

@@ -144,3 +144,25 @@ it('top padding follows the safe area', async () => {
   const style = require('react-native').StyleSheet.flatten(scroll.props.contentContainerStyle);
   expect(style.paddingTop).toBe(55);
 });
+
+it('Android: custom time picker stays closed until tapped, and closes after a pick', async () => {
+  const { Platform } = require('react-native');
+  jest.replaceProperty(Platform, 'OS', 'android');
+  mockOnChange = undefined;
+  mockGetPerm.mockResolvedValue({ status: 'granted' });
+  mockEnable.mockClear();
+  mockEnable.mockResolvedValue(true);
+  await render(<Settings />);
+  await waitFor(() => expect(screen.getByLabelText('Pick a custom time')).toBeTruthy());
+  expect(mockOnChange).toBeUndefined();
+  await fireEvent.press(screen.getByLabelText('Pick a custom time'));
+  expect(mockOnChange).toBeDefined();
+  const pick = mockOnChange!;
+  mockOnChange = undefined;
+  await act(async () => {
+    pick({ type: 'dismissed' }, new Date(2026, 0, 1, 7, 30));
+  });
+  expect(mockEnable).not.toHaveBeenCalled();
+  expect(mockOnChange).toBeUndefined();
+  jest.restoreAllMocks();
+});

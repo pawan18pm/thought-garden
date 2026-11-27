@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { REMINDERS_SUPPORTED } from './support';
 import { reminderDates, reminderLine } from '@/domain/reminder';
@@ -9,6 +10,16 @@ export interface SettingsStore {
 }
 
 const DEFAULT_TIME = '21:00';
+const CHANNEL_ID = 'reminders';
+
+/** Android needs a channel before it will show the permission prompt or any notification. */
+async function ensureChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+    name: 'Daily reminder',
+    importance: Notifications.AndroidImportance.DEFAULT,
+  });
+}
 let settings: SettingsStore | null = null;
 
 /** Called once from boot: gives this module settings access and sets the foreground handler. */
@@ -39,6 +50,7 @@ export async function enableReminder(time: string): Promise<boolean> {
       await s.set('reminder_enabled', '0');
       return false;
     }
+    await ensureChannel();
     let status = (await Notifications.getPermissionsAsync()).status;
     if (status !== 'granted') status = (await Notifications.requestPermissionsAsync()).status;
     if (status !== 'granted') {
@@ -84,11 +96,16 @@ async function doReschedule(now: Date): Promise<void> {
     if ((await s.get('reminder_enabled')) !== '1') return;
     const time = (await s.get('reminder_time')) ?? DEFAULT_TIME;
     const dates = reminderDates(now, time);
+    await ensureChannel();
     for (let i = 0; i < dates.length; i++) {
       await Notifications.scheduleNotificationAsync({
         identifier: `reminder-${i}`,
         content: { title: 'Thought Garden', body: reminderLine(i) },
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: dates[i] },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: dates[i],
+          ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : null),
+        },
       });
     }
   } catch (e) {
